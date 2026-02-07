@@ -1,4 +1,40 @@
-# React + TypeScript + Vite
+# 🗳️ Application de Vote en Ligne - IAI-Cameroun
+
+Concours Miss & Master - Plateforme de vote avec paiement Mobile Money (MTN, Orange) via **NotchPay**.
+
+## Structure du projet
+
+| Dossier | Rôle | Hébergement |
+|---------|------|-------------|
+| **frontend/** | App React (Vite) | Vercel — définir **Root Directory** = `frontend` |
+| **server/** | API Express + notchpay-js (Option B) | Railway — **Root Directory** = `server` |
+
+Les documents d'analyse (`.md` à la racine) ne sont pas utilisés par le build ; les mettre dans un dossier (ex. `docs/`) ne dérange pas Vercel.
+
+## Démarrage en local
+
+```bash
+# Terminal 1 - Backend
+cd server && npm install && npm run dev
+
+# Terminal 2 - Frontend (avec proxy /api vers localhost:3000)
+cd frontend && npm install && npm run dev
+```
+
+## 📚 Documentation du projet
+
+| Document | Description |
+|----------|-------------|
+| [docs/GUIDE_PAS_A_PAS.md](./docs/GUIDE_PAS_A_PAS.md) | **Déploiement pas à pas** (NotchPay, Vercel, Railway, webhooks) |
+| [docs/NOTCHPAY_IMPLEMENTATION.md](./docs/NOTCHPAY_IMPLEMENTATION.md) | Guide technique d'intégration NotchPay |
+| [IMPLEMENTATION_STATUS.md](./IMPLEMENTATION_STATUS.md) | État de l'implémentation UI/UX |
+| [AMELIORATIONS_PROPOSEES.md](./AMELIORATIONS_PROPOSEES.md) | Propositions d'amélioration frontend |
+| [QUICK_START.md](./QUICK_START.md) | Résumé des améliorations UI/UX |
+| [IMPLEMENTATION_CHECKLIST.md](./IMPLEMENTATION_CHECKLIST.md) | Checklist des 4 phases d'implémentation |
+
+---
+
+## React + TypeScript + Vite
 
 This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
 
