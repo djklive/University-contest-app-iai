@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { BarChart3, Users, Heart, User } from 'lucide-react';
+import { BarChart3, Users, Heart } from 'lucide-react';
 import { Header } from './components/Header';
 import { useFavorites } from './hooks/useFavorites';
 import { Dashboard } from './components/Dashboard';
