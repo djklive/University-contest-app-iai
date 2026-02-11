@@ -277,12 +277,18 @@ export function PaymentModal({
               </div>
 
               {paymentReference ? (
-                <div className="rounded-lg bg-blue-50 dark:bg-blue-950/30 p-4 text-center">
-                  <Loader2 className="w-8 h-8 animate-spin mx-auto mb-2 text-[#1e40af]" />
+                <div className="rounded-lg bg-blue-50 dark:bg-blue-950/30 p-4 text-center space-y-2">
+                  <Loader2 className="w-8 h-8 animate-spin mx-auto text-[#1e40af]" />
                   <p className="font-medium">Paiement envoyé!</p>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    Confirmez sur votre téléphone (MTN / Orange). Nous mettons à jour le statut automatiquement.
+                  <p className="text-sm text-muted-foreground">
+                    En production : confirmez sur votre téléphone (MTN / Orange). Le statut se met à jour automatiquement.
                   </p>
+                  <p className="text-xs text-muted-foreground/90">
+                    En mode test (sandbox) : aucun SMS réel. Avec le numéro 670000000 (MTN), le statut peut passer à « Succès » sous 30 secondes.
+                  </p>
+                  {error && (
+                    <p className="text-sm text-red-600 dark:text-red-400 mt-2">{error}</p>
+                  )}
                 </div>
               ) : (
                 <div className="flex gap-3">

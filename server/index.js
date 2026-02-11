@@ -113,6 +113,7 @@ app.post('/api/votes/pay', async (req, res) => {
     packId,
     votes: pack.votes,
     status: 'pending',
+    notchpayRef: paymentRef !== reference ? paymentRef : null,
   });
 
   try {
@@ -162,6 +163,46 @@ app.get('/api/payments/:reference/status', async (req, res) => {
   const { reference } = req.params;
   const pending = pendingPayments.get(reference);
 
+  if (NOTCHPAY_SECRET) {
+    const notchpayRef = pending?.notchpayRef || reference;
+    try {
+      const payment = await notchpayRetrievePayment(notchpayRef);
+      if (payment) {
+        const status = payment?.transaction?.status || payment?.status || 'unknown';
+        const meta = payment?.transaction?.customer_meta || payment?.customer_meta || payment?.metadata || {};
+        const candidateId = meta.candidateId ?? pending?.candidateId;
+        const votes = meta.votes ?? pending?.votes;
+
+        if (status === 'complete' && candidateId && votes != null) {
+          pendingPayments.set(reference, {
+            candidateId,
+            packId: meta.packId ?? pending?.packId,
+            votes: Number(votes),
+            status: 'complete',
+          });
+          return res.json({
+            reference,
+            status: 'complete',
+            candidateId,
+            votes: Number(votes),
+          });
+        }
+        if (status === 'failed') {
+          if (pending) {
+            pending.status = 'failed';
+            pendingPayments.set(reference, pending);
+          }
+          return res.json({
+            reference,
+            status: 'failed',
+            candidateId: pending?.candidateId ?? null,
+            votes: pending?.votes ?? null,
+          });
+        }
+      }
+    } catch (_) {}
+  }
+
   if (pending) {
     return res.json({
       reference,
@@ -171,35 +212,7 @@ app.get('/api/payments/:reference/status', async (req, res) => {
     });
   }
 
-  if (!NOTCHPAY_SECRET) {
-    return res.status(404).json({ reference, status: 'unknown' });
-  }
-
-  try {
-    const payment = await notchpayRetrievePayment(reference);
-    if (!payment) return res.status(404).json({ reference, status: 'unknown' });
-    const status = payment?.transaction?.status || 'unknown';
-    const meta = payment?.transaction?.customer_meta || payment?.customer_meta || {};
-    const candidateId = meta.candidateId;
-    const votes = meta.votes;
-
-    if (status === 'complete' && candidateId && votes) {
-      return res.json({
-        reference,
-        status: 'complete',
-        candidateId,
-        votes: Number(votes),
-      });
-    }
-    return res.json({
-      reference,
-      status: status === 'failed' ? 'failed' : 'pending',
-      candidateId: candidateId || null,
-      votes: votes ? Number(votes) : null,
-    });
-  } catch (_) {
-    return res.status(404).json({ reference, status: 'unknown' });
-  }
+  return res.status(404).json({ reference, status: 'unknown' });
 });
 
 // Webhook NotchPay (body JSON parsé par express.json())

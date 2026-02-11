@@ -43,6 +43,14 @@ Le choix dans la modal (Orange / MTN) envoie le bon `channel` au backend, qui le
 
 ---
 
+## « Paiement envoyé » : quoi faire et comment voir les erreurs
+
+- **En test (sandbox)** : aucun SMS n’est envoyé. Avec le numéro **670000000** (MTN), restez sur la page : le statut peut passer à **Succès** sous 30 secondes. Si rien ne change après ~1 min, vérifiez que le backend a bien `NOTCHPAY_SECRET_KEY` (clé test).
+- **En production** : l’utilisateur reçoit la demande sur son téléphone et doit **accepter**. Une fois fait, la page se met à jour (succès ou échec).
+- **Voir une erreur** : si le paiement échoue (refus, fonds insuffisants, etc.), un message en rouge s’affiche dans la modal et vous pouvez réessayer (changer de numéro ou de moyen de paiement).
+
+---
+
 ## Erreurs fréquentes
 
 ### « POST .../api/votes/pay 400 (Bad Request) »
