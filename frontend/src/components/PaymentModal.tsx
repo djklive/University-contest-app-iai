@@ -213,27 +213,41 @@ export function PaymentModal({
 
               <div className="flex flex-col gap-4">
                 <Label>Moyen de paiement</Label>
-                <RadioGroup 
-                  defaultValue="orange" 
+                <RadioGroup
+                  value={paymentProvider}
                   onValueChange={(v) => setPaymentProvider(v as 'orange' | 'mtn')}
                   className="grid grid-cols-2 gap-4"
                 >
-                  <div>
+                  <div className="relative">
                     <RadioGroupItem value="orange" id="orange" className="peer sr-only" />
                     <Label
                       htmlFor="orange"
-                      className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-[#ff7900] peer-data-[state=checked]:bg-[#ff7900]/10 cursor-pointer"
+                      className={`flex flex-col items-center justify-center rounded-xl border-2 p-4 cursor-pointer transition-all ${
+                        paymentProvider === 'orange'
+                          ? 'border-[#ff7900] bg-[#ff7900]/15 ring-2 ring-[#ff7900]/40'
+                          : 'border-muted bg-muted/30 hover:border-[#ff7900]/50'
+                      }`}
                     >
                       <span className="font-bold">Orange Money</span>
+                      {paymentProvider === 'orange' && (
+                        <span className="text-xs text-[#ff7900] mt-1">Sélectionné</span>
+                      )}
                     </Label>
                   </div>
-                  <div>
+                  <div className="relative">
                     <RadioGroupItem value="mtn" id="mtn" className="peer sr-only" />
                     <Label
                       htmlFor="mtn"
-                      className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-[#ffcc00] peer-data-[state=checked]:bg-[#ffcc00]/10 cursor-pointer"
+                      className={`flex flex-col items-center justify-center rounded-xl border-2 p-4 cursor-pointer transition-all ${
+                        paymentProvider === 'mtn'
+                          ? 'border-[#ffcc00] bg-[#ffcc00]/15 ring-2 ring-[#ffcc00]/40'
+                          : 'border-muted bg-muted/30 hover:border-[#ffcc00]/50'
+                      }`}
                     >
                       <span className="font-bold">MTN MoMo</span>
+                      {paymentProvider === 'mtn' && (
+                        <span className="text-xs text-[#b38600] dark:text-[#ffcc00] mt-1">Sélectionné</span>
+                      )}
                     </Label>
                   </div>
                 </RadioGroup>

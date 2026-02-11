@@ -1,9 +1,13 @@
 /**
  * Client API backend Vote IAI (NotchPay)
- * Base URL: VITE_API_URL (ex: http://localhost:3000 en dev, https://votre-api.railway.app en prod)
+ * En prod: VITE_API_URL doit être l'URL COMPLÈTE du backend (ex: https://votre-api.up.railway.app)
+ * Sans "https://" le navigateur traite l'URL en relatif et appelle Vercel → 404.
  */
-
-const BASE = import.meta.env.VITE_API_URL || '';
+const rawBase = import.meta.env.VITE_API_URL || '';
+const BASE =
+  rawBase && !rawBase.startsWith('http://') && !rawBase.startsWith('https://')
+    ? `https://${rawBase}`
+    : rawBase;
 
 export type PaymentChannel = 'cm.mtn' | 'cm.orange';
 

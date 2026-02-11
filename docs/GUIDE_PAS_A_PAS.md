@@ -92,7 +92,7 @@ Mettre l’app dans un sous-dossier **ne casse pas** Vercel. Il suffit de défin
 1. **Settings** → **Environment Variables**.
 2. Ajouter :
    - **Name** : `VITE_API_URL`
-   - **Value** : l’URL Railway (ex. `https://vote-iai-api.railway.app`) **sans** slash final.
+   - **Value** : l’URL Railway (ex. `https://vote-iai-api.railway.app`) **avec** `https://`, sans slash final. Sinon le navigateur traite l’URL en relatif → 404.
 3. Appliquer à **Production** (et **Preview** si vous voulez les mêmes appels en preview).
 
 ### 4.4 Redéploiement
@@ -136,6 +136,7 @@ Pour que le statut “paiement réussi” soit bien pris en compte même si l’
 
 - **“Paiement non configuré”** : `NOTCHPAY_SECRET_KEY` manquante ou incorrecte sur Railway.
 - **Erreur réseau / CORS** : vérifier que `APP_URL` (Railway) correspond exactement au domaine Vercel (sans slash final) et que CORS est bien activé côté backend (déjà le cas dans `server/index.js`).
-- **404 sur /api/...** : en local, lancer le serveur dans `server/` (`npm run dev`) et garder `VITE_API_URL` vide pour utiliser le proxy Vite vers `http://localhost:3000`.
+- **404 sur /api/... en production** : vérifier que `VITE_API_URL` sur Vercel est l’URL **complète** du backend (ex. `https://xxx.up.railway.app`). Si la valeur n’a pas `https://`, l’appel part vers Vercel et renvoie 404.
+- **404 en local** : lancer le serveur dans `server/` (`npm run dev`) et garder `VITE_API_URL` vide pour utiliser le proxy Vite vers `http://localhost:3000`.
 
 Une fois ces étapes faites, l’intégration NotchPay (Option B) est opérationnelle avec le SDK côté backend et le frontend dans `frontend/` déployé sur Vercel.

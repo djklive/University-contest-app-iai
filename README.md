@@ -27,6 +27,7 @@ cd frontend && npm install && npm run dev
 |----------|-------------|
 | [docs/GUIDE_PAS_A_PAS.md](./docs/GUIDE_PAS_A_PAS.md) | **Déploiement pas à pas** (NotchPay, Vercel, Railway, webhooks) |
 | [docs/NOTCHPAY_IMPLEMENTATION.md](./docs/NOTCHPAY_IMPLEMENTATION.md) | Guide technique d'intégration NotchPay |
+| [docs/PAIEMENT_NOTCHPAY_EXPLIQUE.md](./docs/PAIEMENT_NOTCHPAY_EXPLIQUE.md) | Flux de paiement, Orange/MTN, dépannage 404/400 |
 | [IMPLEMENTATION_STATUS.md](./IMPLEMENTATION_STATUS.md) | État de l'implémentation UI/UX |
 | [AMELIORATIONS_PROPOSEES.md](./AMELIORATIONS_PROPOSEES.md) | Propositions d'amélioration frontend |
 | [QUICK_START.md](./QUICK_START.md) | Résumé des améliorations UI/UX |
