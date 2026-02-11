@@ -1,12 +1,13 @@
 /**
  * Backend Vote IAI - NotchPay (Option B: intégration directe)
+ * API REST NotchPay via fetch (pas de SDK npm)
  * Hébergement: Railway
  */
 import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
-import { NotchPayAPI } from 'notchpay-js';
 
+const NOTCHPAY_API = 'https://api.notchpay.co';
 const app = express();
 app.use(cors({ origin: true })); // En prod, restreindre à votre domaine Vercel
 app.use(express.json());
@@ -19,14 +20,33 @@ if (!NOTCHPAY_SECRET) {
   console.warn('NOTCHPAY_SECRET_KEY manquant. Paiements désactivés.');
 }
 
-const notchpay = NOTCHPAY_SECRET ? new NotchPayAPI(NOTCHPAY_SECRET) : null;
+async function notchpayCreatePayment(body) {
+  const res = await fetch(`${NOTCHPAY_API}/payments`, {
+    method: 'POST',
+    headers: {
+      Authorization: NOTCHPAY_SECRET,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(body),
+  });
+  return res.json();
+}
+
+async function notchpayRetrievePayment(reference) {
+  const res = await fetch(`${NOTCHPAY_API}/payments/${encodeURIComponent(reference)}`, {
+    method: 'GET',
+    headers: { Authorization: NOTCHPAY_SECRET },
+  });
+  if (!res.ok) return null;
+  return res.json();
+}
 
 // Store en mémoire: reference -> { candidateId, packId, votes, status }
 const pendingPayments = new Map();
 
 // Créer un paiement puis lancer le Mobile Money (Option B)
 app.post('/api/votes/pay', async (req, res) => {
-  if (!notchpay) {
+  if (!NOTCHPAY_SECRET) {
     return res.status(503).json({
       success: false,
       message: 'Paiement non configuré (clé API manquante).',
@@ -58,7 +78,7 @@ app.post('/api/votes/pay', async (req, res) => {
 
   let paymentRef = reference;
   try {
-    const payment = await notchpay.payments.create({
+    const payment = await notchpayCreatePayment({
       amount: Number(amount),
       currency: 'XAF',
       customer: {
@@ -74,6 +94,12 @@ app.post('/api/votes/pay', async (req, res) => {
     });
     if (payment?.transaction?.reference) paymentRef = payment.transaction.reference;
     else if (payment?.reference) paymentRef = payment.reference;
+    if (payment?.code && payment.code >= 400) {
+      return res.status(500).json({
+        success: false,
+        message: payment.message || 'Erreur lors de la création du paiement.',
+      });
+    }
   } catch (err) {
     console.error('NotchPay create error:', err);
     return res.status(500).json({
@@ -145,12 +171,13 @@ app.get('/api/payments/:reference/status', async (req, res) => {
     });
   }
 
-  if (!notchpay) {
+  if (!NOTCHPAY_SECRET) {
     return res.status(404).json({ reference, status: 'unknown' });
   }
 
   try {
-    const payment = await notchpay.payments.retrieve(reference);
+    const payment = await notchpayRetrievePayment(reference);
+    if (!payment) return res.status(404).json({ reference, status: 'unknown' });
     const status = payment?.transaction?.status || 'unknown';
     const meta = payment?.transaction?.customer_meta || payment?.customer_meta || {};
     const candidateId = meta.candidateId;

@@ -1,6 +1,6 @@
 # Backend Vote IAI (NotchPay)
 
-API Express pour l'application de vote IAI. Gère les paiements Mobile Money (MTN, Orange) via **NotchPay** (Option B – intégration directe) avec le SDK **notchpay-js**.
+API Express pour l'application de vote IAI. Gère les paiements Mobile Money (MTN, Orange) via **NotchPay** (Option B – intégration directe) en appelant l’API REST NotchPay (sans SDK npm).
 
 ## Installation
 
