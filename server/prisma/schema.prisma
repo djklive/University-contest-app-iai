@@ -1,0 +1,54 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Candidate {
+  id        String   @id @default(cuid())
+  name      String
+  category  String   // "miss" | "master"
+  photo     String
+  biography String   @db.Text
+  badges    String[] // ["jury", "popular"]
+  gallery   String[] // URLs
+  videoUrl  String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  votes     Vote[]
+}
+
+model VotePack {
+  id      String  @id // "single", "pack5", "pack12"
+  votes   Int
+  price   Int
+  popular Boolean @default(false)
+}
+
+model Vote {
+  id               String   @id @default(cuid())
+  candidateId      String
+  candidate        Candidate @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+  paymentReference String   @unique
+  votesCount       Int
+  amount           Int      // FCFA
+  createdAt        DateTime @default(now())
+
+  @@index([candidateId])
+}
+
+model Payment {
+  id          String   @id @default(cuid())
+  reference   String   @unique
+  status      String   // pending, complete, failed
+  candidateId String
+  packId      String
+  amount      Int
+  votesCount  Int
+  notchpayRef String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}

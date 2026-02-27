@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { BarChart3, Users, Heart } from 'lucide-react';
 import { Header } from './components/Header';
 import { useFavorites } from './hooks/useFavorites';
@@ -8,22 +8,42 @@ import { CandidateProfile } from './components/CandidateProfile';
 import { PaymentModal } from './components/PaymentModal';
 import { Toaster } from './components/ui/sonner';
 import { AnimatePresence, motion } from 'framer-motion';
+import { getCandidates, getVotePacks, type Candidate, type VotePack } from './lib/api';
 
 type View = 'dashboard' | 'gallery' | 'profile' | 'favorites' | 'profile-user';
 
 export default function App() {
   const [currentView, setCurrentView] = useState<View>('dashboard');
   const [selectedCandidateId, setSelectedCandidateId] = useState<string | null>(null);
-  const [votes, setVotes] = useState<Record<string, number>>({});
+  const [candidates, setCandidates] = useState<Candidate[]>([]);
+  const [votePacks, setVotePacks] = useState<VotePack[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [apiError, setApiError] = useState<string | null>(null);
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
   const [votingCandidateId, setVotingCandidateId] = useState<string | null>(null);
   const [isDarkMode, setIsDarkMode] = useState(false);
   const { favorites, toggleFavorite } = useFavorites();
-  
-  // Calculate votes remaining (assuming max 50 votes)
+
+  const fetchData = async () => {
+    setLoading(true);
+    setApiError(null);
+    try {
+      const [c, p] = await Promise.all([getCandidates(), getVotePacks()]);
+      setCandidates(c);
+      setVotePacks(p);
+    } catch (e) {
+      setApiError(e instanceof Error ? e.message : 'Erreur chargement');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchData();
+  }, []);
+
   const totalVotes = 50;
-  const votesUsed = Object.values(votes).reduce((a, b) => a + b, 0);
-  const votesRemaining = totalVotes - votesUsed;
+  const votesRemaining = totalVotes;
 
   const handleSelectCandidate = (candidateId: string) => {
     setSelectedCandidateId(candidateId);
@@ -35,11 +55,8 @@ export default function App() {
     setIsPaymentModalOpen(true);
   };
 
-  const handlePaymentSuccess = (candidateId: string, votesCount: number) => {
-    setVotes((prev) => ({
-      ...prev,
-      [candidateId]: (prev[candidateId] || 0) + votesCount,
-    }));
+  const handlePaymentSuccess = () => {
+    fetchData();
   };
 
   const handleBackFromProfile = () => {
@@ -69,6 +86,11 @@ export default function App() {
 
       {/* Main Content */}
       <div className="max-w-md mx-auto pt-4 pb-32 min-h-screen">
+        {apiError && (
+          <div className="mx-4 p-4 rounded-lg bg-red-50 dark:bg-red-950/30 text-red-700 dark:text-red-300 text-sm">
+            {apiError} — Vérifiez que le backend est démarré et que DATABASE_URL est configuré.
+          </div>
+        )}
         <AnimatePresence mode="wait">
           {currentView === 'dashboard' && (
             <motion.div
@@ -79,10 +101,10 @@ export default function App() {
               variants={pageVariants}
               transition={{ duration: 0.3 }}
             >
-              <Dashboard votes={votes} />
+              <Dashboard loading={loading} />
             </motion.div>
           )}
-          
+
           {currentView === 'gallery' && (
             <motion.div
               key="gallery"
@@ -93,7 +115,8 @@ export default function App() {
               transition={{ duration: 0.3 }}
             >
               <CandidateGallery
-                votes={votes}
+                candidates={candidates}
+                loading={loading}
                 onSelectCandidate={handleSelectCandidate}
                 onVote={handleVote}
                 favorites={favorites}
@@ -112,7 +135,8 @@ export default function App() {
               transition={{ duration: 0.3 }}
             >
               <CandidateGallery
-                votes={votes}
+                candidates={candidates}
+                loading={loading}
                 onSelectCandidate={handleSelectCandidate}
                 onVote={handleVote}
                 favorites={favorites}
@@ -132,8 +156,7 @@ export default function App() {
               className="absolute inset-0 z-50 bg-background"
             >
               <CandidateProfile
-                candidateId={selectedCandidateId}
-                votes={votes}
+                candidate={candidates.find((c) => c.id === selectedCandidateId)}
                 onBack={handleBackFromProfile}
                 onVote={handleVote}
               />
@@ -201,6 +224,7 @@ export default function App() {
       <PaymentModal
         isOpen={isPaymentModalOpen}
         candidateId={votingCandidateId}
+        votePacks={votePacks}
         onClose={() => {
           setIsPaymentModalOpen(false);
           setVotingCandidateId(null);

@@ -3,13 +3,14 @@ import { Heart, Award, Star } from 'lucide-react';
 import { Card } from './ui/card';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
-import { candidates } from '../lib/mockData';
 import { SearchBar } from './SearchBar';
 import { FilterTabs } from './FilterTabs';
 import { FavoriteButton } from './FavoriteButton';
+import type { Candidate } from '../lib/api';
 
 interface CandidateGalleryProps {
-  votes: Record<string, number>;
+  candidates: Candidate[];
+  loading: boolean;
   onSelectCandidate: (candidateId: string) => void;
   onVote: (candidateId: string) => void;
   favorites: Set<string>;
@@ -17,46 +18,32 @@ interface CandidateGalleryProps {
   showFavoritesOnly?: boolean;
 }
 
-export function CandidateGallery({ 
-  votes, 
-  onSelectCandidate, 
+export function CandidateGallery({
+  candidates,
+  loading,
+  onSelectCandidate,
   onVote,
   favorites,
   toggleFavorite,
-  showFavoritesOnly = false
+  showFavoritesOnly = false,
 }: CandidateGalleryProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [activeFilter, setActiveFilter] = useState('Tous');
 
-  const getCandidateVotes = (candidateId: string) => {
-    const candidate = candidates.find(c => c.id === candidateId);
-    return (candidate?.votes || 0) + (votes[candidateId] || 0);
-  };
-
   const filters = ['Tous', 'Miss', 'Master', 'Populaire', 'Jury'];
 
-  const filteredCandidates = candidates.filter(candidate => {
-    // Search filter
-    if (searchQuery && !candidate.name.toLowerCase().includes(searchQuery.toLowerCase())) {
-      return false;
-    }
-
-    // Favorites filter
-    if (showFavoritesOnly && !favorites.has(candidate.id)) {
-      return false;
-    }
-
-    // Category/Tag filter
+  const filteredCandidates = candidates.filter((candidate) => {
+    if (searchQuery && !candidate.name.toLowerCase().includes(searchQuery.toLowerCase())) return false;
+    if (showFavoritesOnly && !favorites.has(candidate.id)) return false;
     if (activeFilter === 'Tous') return true;
     if (activeFilter === 'Miss') return candidate.category === 'miss';
     if (activeFilter === 'Master') return candidate.category === 'master';
     if (activeFilter === 'Populaire') return candidate.badges.includes('popular');
     if (activeFilter === 'Jury') return candidate.badges.includes('jury');
-    
     return true;
   });
 
-  const renderCandidateCard = (candidate: typeof candidates[0]) => (
+  const renderCandidateCard = (candidate: Candidate) => (
     <Card
       key={candidate.id}
       className="overflow-hidden cursor-pointer transition-all hover:shadow-xl hover:scale-105"
@@ -89,7 +76,7 @@ export function CandidateGallery({
         <div className="absolute top-2 right-2 flex flex-col gap-2 items-end">
              <div className="bg-black/60 backdrop-blur-sm text-white px-2 py-1 rounded-full text-xs flex items-center gap-1">
             <Heart className="w-3 h-3 fill-white" />
-            {getCandidateVotes(candidate.id)}
+            {candidate.votes}
           </div>
           <div onClick={(e) => e.stopPropagation()}>
             <FavoriteButton 
@@ -154,13 +141,15 @@ export function CandidateGallery({
         </div>
       )}
 
-      {filteredCandidates.length > 0 ? (
+      {loading ? (
+        <div className="text-center py-10 text-muted-foreground">Chargement des candidats...</div>
+      ) : filteredCandidates.length > 0 ? (
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 pb-20">
-            {filteredCandidates.map(renderCandidateCard)}
+          {filteredCandidates.map(renderCandidateCard)}
         </div>
       ) : (
         <div className="text-center py-10 text-muted-foreground">
-            <p>Aucun candidat trouvé.</p>
+          Aucun candidat trouvé.
         </div>
       )}
     </div>

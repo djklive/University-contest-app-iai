@@ -11,8 +11,8 @@ import {
   DialogTitle,
   DialogDescription,
 } from './ui/dialog';
-import { votePacks } from '../lib/mockData';
 import { Stepper } from './Stepper';
+import type { VotePack } from '../lib/api';
 import { ConfettiAnimation } from './ConfettiAnimation';
 import { AnimatePresence, motion } from 'framer-motion';
 import { payVote, getPaymentStatus } from '../lib/api';
@@ -21,13 +21,15 @@ interface PaymentModalProps {
   isOpen: boolean;
   onClose: () => void;
   candidateId: string | null;
-  onSuccess: (candidateId: string, votes: number) => void;
+  votePacks: VotePack[];
+  onSuccess: () => void;
 }
 
 export function PaymentModal({
   isOpen,
   onClose,
   candidateId,
+  votePacks,
   onSuccess,
 }: PaymentModalProps) {
   const [step, setStep] = useState(1);
@@ -102,8 +104,13 @@ export function PaymentModal({
 
     setPaymentReference(data.reference);
 
+    const ref = data.reference;
+    const maxAttempts = 48;
+    let attempts = 0;
+
     pollIntervalRef.current = setInterval(async () => {
-      const status = await getPaymentStatus(data.reference!);
+      attempts += 1;
+      const status = await getPaymentStatus(ref);
       if (!status) return;
       if (status.status === 'complete' && status.candidateId && status.votes != null) {
         if (pollIntervalRef.current) {
@@ -112,7 +119,7 @@ export function PaymentModal({
         }
         setStep(3);
         setShowConfetti(true);
-        onSuccess(status.candidateId, status.votes);
+        onSuccess();
       }
       if (status.status === 'failed') {
         if (pollIntervalRef.current) {
@@ -120,6 +127,15 @@ export function PaymentModal({
           pollIntervalRef.current = null;
         }
         setError('Paiement refusé ou échoué. Vous pouvez réessayer.');
+        setIsLoading(false);
+        setPaymentReference(null);
+      }
+      if (attempts >= maxAttempts) {
+        if (pollIntervalRef.current) {
+          clearInterval(pollIntervalRef.current);
+          pollIntervalRef.current = null;
+        }
+        setError('Délai dépassé. Si vous avez confirmé sur votre téléphone, rechargez la page pour voir le résultat.');
         setIsLoading(false);
         setPaymentReference(null);
       }

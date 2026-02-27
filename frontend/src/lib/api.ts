@@ -54,3 +54,78 @@ export async function getPaymentStatus(reference: string): Promise<PaymentStatus
   if (!res.ok) return null;
   return res.json();
 }
+
+// --- Candidats, stats, packs (données réelles) ---
+
+export interface Candidate {
+  id: string;
+  name: string;
+  category: 'miss' | 'master';
+  photo: string;
+  votes: number;
+  biography: string;
+  badges: ('jury' | 'popular')[];
+  gallery: string[];
+  videoUrl?: string | null;
+}
+
+export interface VotePack {
+  id: string;
+  votes: number;
+  price: number;
+  popular: boolean;
+}
+
+export interface Stats {
+  totalVotes: number;
+  missVotes: number;
+  masterVotes: number;
+  missRanking: { id: string; name: string; category: string; totalVotes: number }[];
+  masterRanking: { id: string; name: string; category: string; totalVotes: number }[];
+}
+
+export async function getCandidates(): Promise<Candidate[]> {
+  const res = await fetch(`${BASE}/api/candidates`);
+  if (!res.ok) throw new Error('Erreur chargement candidats');
+  const data = await res.json();
+  return data.map((c: Record<string, unknown>) => ({
+    id: c.id,
+    name: c.name,
+    category: c.category,
+    photo: c.photo,
+    votes: Number(c.votes ?? 0),
+    biography: c.biography,
+    badges: Array.isArray(c.badges) ? c.badges : [],
+    gallery: Array.isArray(c.gallery) ? c.gallery : [],
+    videoUrl: c.videoUrl ?? undefined,
+  }));
+}
+
+export async function getCandidate(id: string): Promise<Candidate | null> {
+  const res = await fetch(`${BASE}/api/candidates/${encodeURIComponent(id)}`);
+  if (!res.ok) return null;
+  const c = await res.json();
+  return {
+    id: c.id,
+    name: c.name,
+    category: c.category,
+    photo: c.photo,
+    votes: Number(c.votes ?? 0),
+    biography: c.biography,
+    badges: Array.isArray(c.badges) ? c.badges : [],
+    gallery: Array.isArray(c.gallery) ? c.gallery : [],
+    videoUrl: c.videoUrl ?? undefined,
+  };
+}
+
+export async function getStats(): Promise<Stats> {
+  const res = await fetch(`${BASE}/api/stats`);
+  if (!res.ok) throw new Error('Erreur chargement stats');
+  return res.json();
+}
+
+export async function getVotePacks(): Promise<VotePack[]> {
+  const res = await fetch(`${BASE}/api/vote-packs`);
+  if (!res.ok) throw new Error('Erreur chargement packs');
+  return res.json();
+}
