@@ -4,6 +4,14 @@ Quand tu as créé un **service PostgreSQL** (ou postgres-volume) à côté de t
 
 ---
 
+## 0. Postgres vs Volume : pas de « mount » pour la base
+
+- **Service PostgreSQL** (ex. « postgres-volume ») : c’est la **base de données**. Le backend s’y connecte **via une URL** (`DATABASE_URL`). Rien à « monter » pour la connexion.
+- **Volume** (RAILWAY_VOLUME_MOUNT_PATH, etc.) : **disque persistant** pour fichiers (uploads, cache), pas pour Postgres. Un mount sur le backend (ex. `/server`) est optionnel.
+- Pour que l’app utilise la base : le **service backend** doit avoir `DATABASE_URL` qui référence le **service Postgres** (section 1).
+
+---
+
 ## 1. Référencer la base depuis le service backend
 
 Railway expose les variables du service Postgres. Tu ne copies pas l’URL à la main : tu **références** la variable du service Postgres.
@@ -57,14 +65,45 @@ DATABASE_URL=${{Postgres.DATABASE_PRIVATE_URL}}
 
 1. **Sauvegarde** les variables du service backend.
 2. Railway **redéploie** le backend. Au prochain déploiement, `DATABASE_URL` sera bien remplie par l’URL privée Postgres.
-3. Côté base : exécuter les migrations Prisma **une fois** sur la base Railway :
-   - En local, avec la même URL (tu peux copier temporairement `DATABASE_URL` depuis le service Postgres → Variables pour l’utiliser en local).
-   - Ou via un déploiement qui lance `prisma migrate deploy` (et éventuellement le seed) au build/start.
+3. **Migrations** : le script `start` du backend exécute `prisma migrate deploy` puis `node index.js`. Donc **à chaque démarrage** (premier déploiement ou redémarrage), les migrations sont appliquées automatiquement sur la base Postgres. Pas besoin de lancer la commande à la main.
+4. **Seed** (candidats + packs) : une seule fois après la première mise en place de la base, tu peux lancer le seed en local en pointant vers la base Railway (copie temporaire de `DATABASE_URL` depuis le service Postgres dans ton `.env`), puis `npx prisma db seed`. Ou ajouter un one-off sur Railway si tu préfères.
 
 ---
 
-## 5. Résumé
+## 5. Où mettre la référence `${{...}}` (important)
+
+- **Sur Railway** (dashboard du **service backend** → Variables) : ajoute `DATABASE_URL` avec la valeur `${{postgres-volume.DATABASE_PRIVATE_URL}}` (ou le nom de ton service Postgres). Railway **remplace** cette référence par la vraie URL au déploiement.
+- **En local** (fichier `.env` du projet) : **ne mets pas** la référence `${{...}}` dans `.env`. En local elle n’est pas remplacée, et Prisma reçoit une chaîne invalide → erreur **P1013** (scheme not recognized). Mets une **vraie URL** PostgreSQL, par ex. `postgresql://postgres:motdepasse@localhost:5432/vote_iai`. Si le mot de passe contient `&` ou `@`, encode-les : `&` → `%26`, `@` → `%40`.
+
+## 6. Résumé
 
 - **Backend Railway** → Variables → `DATABASE_URL` = `${{NOM_SERVICE_POSTGRES.DATABASE_PRIVATE_URL}}`.
-- **Local** → garde dans ton `.env` une vraie URL (ex. `postgresql://user:password@localhost:5432/vote_iai`) pour pgAdmin / dev.
-- Pas besoin de créer une base à la main : Railway crée la base et fournit l’URL via ces variables.
+- **Local** → dans `.env`, une vraie URL (ex. `postgresql://user:password@localhost:5432/vote_iai`) pour `prisma migrate deploy` et le dev.
+- Pas besoin de « monter » Postgres : la connexion se fait uniquement via cette URL.
+
+---
+
+## 7. Prisma 7 (configuration)
+
+Ce projet utilise **Prisma 7** avec :
+
+- **prisma.config.ts** : l’URL de la base (`DATABASE_URL`) est définie dans `datasource.url` (plus dans le schema). Utilisée par la CLI pour `migrate deploy`, etc.
+- **schema.prisma** : le bloc `datasource` n’a plus de `url` ; le provider est `prisma-client` avec `output = "../generated/prisma"`.
+- **Client** : `db.js` et `prisma/seed.js` instancient `PrismaClient` avec l’adaptateur **@prisma/adapter-pg** en passant `process.env.DATABASE_URL`.
+
+Commandes utiles (à la racine du backend, après `npm install`) :
+
+```bash
+npx prisma generate
+npx prisma migrate deploy
+npx prisma db seed
+```
+
+Si tu as une erreur SSL en production (ex. `rejectUnauthorized`), tu peux autoriser les certificats non vérifiés dans `db.js` :
+
+```js
+const adapter = new PrismaPg({
+  connectionString: process.env.DATABASE_URL,
+  ssl: { rejectUnauthorized: false },
+});
+```

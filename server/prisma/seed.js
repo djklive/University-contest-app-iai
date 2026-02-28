@@ -1,6 +1,11 @@
-import { PrismaClient } from '@prisma/client';
+import "dotenv/config";
+import { PrismaClient } from "../generated/prisma/client.js";
+import { PrismaPg } from "@prisma/adapter-pg";
 
-const prisma = new PrismaClient();
+const adapter = new PrismaPg({
+  connectionString: process.env.DATABASE_URL,
+});
+const prisma = new PrismaClient({ adapter });
 
 const candidates = [
   { id: '1', name: 'Amina Ngom', category: 'miss', photo: 'https://images.unsplash.com/photo-1657446969468-3953de8a053b?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHx5b3VuZyUyMGFmcmljYW4lMjB3b21hbiUyMHBvcnRyYWl0fGVufDF8fHx8MTc2OTEwMjExMXww&ixlib=rb-4.1.0&q=80&w=1080', biography: "Étudiante en Génie Logiciel, passionnée par l'innovation technologique et l'entrepreneuriat. Ambassadrice de l'excellence académique et de l'engagement communautaire.", badges: ['popular', 'jury'], gallery: ['https://images.unsplash.com/photo-1657446969468-3953de8a053b?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHx5b3VuZyUyMGFmcmljYW4lMjB3b21hbiUyMHBvcnRyYWl0fGVufDF8fHx8MTc2OTEwMjExMXww&ixlib=rb-4.1.0&q=80&w=1080', 'https://images.unsplash.com/photo-1560461723-0fa849b3e03a?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxhZnJpY2FuJTIwd29tYW4lMjBlbGVnYW50fGVufDF8fHx8MTc2OTAxMjQ5OHww&ixlib=rb-4.1.0&q=80&w=1080', 'https://images.unsplash.com/photo-1624574337423-7ea725c5540c?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxhZnJpY2FuJTIwc3R1ZGVudCUyMGNvbmZpZGVudHxlbnwxfHx8fDE3NjkxMDIxMTJ8MA&ixlib=rb-4.1.0&q=80&w=1080'], videoUrl: 'https://www.youtube.com/embed/dQw4w9WgXcQ' },
