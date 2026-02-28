@@ -1,0 +1,1 @@
+{ "compilerOptions": { "composite": true, "skipLibCheck": true }, "include": ["../frontend-admin-2/vite.config.ts"] }

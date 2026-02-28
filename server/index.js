@@ -428,6 +428,105 @@ app.delete('/api/admin/candidates/:id', adminAuth, async (req, res) => {
   }
 });
 
+// --- Admin VotePacks ---
+app.get('/api/admin/vote-packs', adminAuth, async (req, res) => {
+  try {
+    const list = await prisma.votePack.findMany({ orderBy: { id: 'asc' } });
+    res.json(list);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.post('/api/admin/vote-packs', adminAuth, async (req, res) => {
+  try {
+    const { id, votes, price, popular } = req.body;
+    if (!id || votes == null || price == null) {
+      return res.status(400).json({ error: 'id, votes, price requis' });
+    }
+    const p = await prisma.votePack.create({
+      data: { id, votes: Number(votes), price: Number(price), popular: Boolean(popular) },
+    });
+    res.status(201).json(p);
+  } catch (e) {
+    if (e.code === 'P2002') return res.status(409).json({ error: 'Un pack avec cet id existe déjà' });
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.put('/api/admin/vote-packs/:id', adminAuth, async (req, res) => {
+  try {
+    const { votes, price, popular } = req.body;
+    const p = await prisma.votePack.update({
+      where: { id: req.params.id },
+      data: {
+        ...(votes != null && { votes: Number(votes) }),
+        ...(price != null && { price: Number(price) }),
+        ...(popular != null && { popular: Boolean(popular) }),
+      },
+    });
+    res.json(p);
+  } catch (e) {
+    if (e.code === 'P2025') return res.status(404).json({ error: 'Pack non trouvé' });
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.delete('/api/admin/vote-packs/:id', adminAuth, async (req, res) => {
+  try {
+    await prisma.votePack.delete({ where: { id: req.params.id } });
+    res.status(204).send();
+  } catch (e) {
+    if (e.code === 'P2025') return res.status(404).json({ error: 'Pack non trouvé' });
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// --- Admin Payments (lecture seule) ---
+app.get('/api/admin/payments', adminAuth, async (req, res) => {
+  try {
+    const limit = Math.min(Number(req.query.limit) || 50, 200);
+    const offset = Number(req.query.offset) || 0;
+    const status = req.query.status; // optional: pending, complete, failed
+    const where = status ? { status } : {};
+    const [list, total] = await Promise.all([
+      prisma.payment.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        take: limit,
+        skip: offset,
+      }),
+      prisma.payment.count({ where }),
+    ]);
+    res.json({ items: list, total });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// --- Admin Votes (lecture seule) ---
+app.get('/api/admin/votes', adminAuth, async (req, res) => {
+  try {
+    const limit = Math.min(Number(req.query.limit) || 50, 200);
+    const offset = Number(req.query.offset) || 0;
+    const candidateId = req.query.candidateId;
+    const where = candidateId ? { candidateId } : {};
+    const [list, total] = await Promise.all([
+      prisma.vote.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        take: limit,
+        skip: offset,
+        include: { candidate: { select: { name: true, category: true } } },
+      }),
+      prisma.vote.count({ where }),
+    ]);
+    res.json({ items: list, total });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // Health check pour Railway
 app.get('/health', (req, res) => {
   res.json({ ok: true, service: 'vote-iai-api' });
