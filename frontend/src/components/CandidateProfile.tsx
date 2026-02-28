@@ -46,12 +46,9 @@ export function CandidateProfile({ candidate, onBack, onVote, rank = 0, category
   };
 
   return (
-    <>
-      {/* Barre fixe en haut : retour + partage — ne défile pas */}
-      <header
-        className="fixed top-0 left-0 right-0 z-[200] flex justify-between items-center px-4 pt-10 pb-4 bg-gray-50/95 dark:bg-gray-900/95 backdrop-blur-sm border-b border-gray-200/50 dark:border-gray-700/50"
-        style={{ position: 'fixed' }}
-      >
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 pb-8">
+      {/* Barre en haut : retour + partage — défile avec la page (disparaît en scrollant vers le bas) */}
+      <header className="flex justify-between items-center px-4 pt-10 pb-4 bg-gray-50 dark:bg-gray-900 border-b border-gray-200/50 dark:border-gray-700/50">
         <Button
           type="button"
           variant="secondary"
@@ -72,12 +69,10 @@ export function CandidateProfile({ candidate, onBack, onVote, rank = 0, category
         </Button>
       </header>
 
-      {/* Contenu scrollable au milieu */}
-      <div className="min-h-screen pt-[72px] pb-[88px]">
-        <HeroImage src={candidate.photo} alt={candidate.name} />
+      <HeroImage src={candidate.photo} alt={candidate.name} />
 
-        <div className="max-w-md mx-auto relative z-10">
-        <div className="text-center -mt-20 mb-8 relative z-20">
+      <div className="max-w-md mx-auto">
+        <div className="text-center -mt-20 mb-8 relative z-10">
           <motion.div
             initial={{ y: 20, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
@@ -139,16 +134,11 @@ export function CandidateProfile({ candidate, onBack, onVote, rank = 0, category
             </section>
           )}
 
-          <div className="h-4" />
+          <div className="h-6" />
         </div>
-        </div>
-      </div>
 
-      {/* Barre fixe en bas : favori + vote — ne défile pas */}
-      <footer
-        className="fixed bottom-0 left-0 right-0 p-4 bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-800 z-[200] safe-area-pb shadow-[0_-4px_12px_rgba(0,0,0,0.08)]"
-        style={{ position: 'fixed' }}
-      >
+      {/* Barre en bas : favori + vote — défile avec la page (disparaît en scrollant vers le haut) */}
+      <footer className="mt-8 px-4 py-4 bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-800">
         <div className="max-w-md mx-auto flex gap-3">
           <Button
             type="button"
@@ -172,6 +162,7 @@ export function CandidateProfile({ candidate, onBack, onVote, rank = 0, category
           </Button>
         </div>
       </footer>
-    </>
+      </div>
+    </div>
   );
 }
