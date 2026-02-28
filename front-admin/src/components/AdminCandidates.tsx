@@ -229,6 +229,38 @@ export function AdminCandidates() {
             <textarea value={form.biography || ''} onChange={(e) => setForm({ ...form, biography: e.target.value })} rows={3} />
           </div>
           <div className="form-group">
+            <label>Badges</label>
+            <p style={{ fontSize: '0.85rem', color: '#64748b', marginBottom: 6 }}>
+              Jury = profil visible, vote désactivé. Populaire = peut être ajouté automatiquement (top 3 par catégorie) ou coché ici.
+            </p>
+            <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
+                <input
+                  type="checkbox"
+                  checked={(form.badges || []).includes('jury')}
+                  onChange={(e) => {
+                    const badges = [...(form.badges || [])];
+                    if (e.target.checked) badges.push('jury'); else badges.splice(badges.indexOf('jury'), 1);
+                    setForm({ ...form, badges });
+                  }}
+                />
+                Jury
+              </label>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
+                <input
+                  type="checkbox"
+                  checked={(form.badges || []).includes('popular')}
+                  onChange={(e) => {
+                    const badges = [...(form.badges || [])];
+                    if (e.target.checked) badges.push('popular'); else badges.splice(badges.indexOf('popular'), 1);
+                    setForm({ ...form, badges });
+                  }}
+                />
+                Populaire
+              </label>
+            </div>
+          </div>
+          <div className="form-group">
             <label>Vidéo (optionnel)</label>
             <input
               ref={videoInputRef}

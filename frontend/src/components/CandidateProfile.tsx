@@ -28,6 +28,7 @@ export function CandidateProfile({ candidate, onBack, onVote, rank = 0, category
   }
 
   const totalVotes = candidate.votes;
+  const isJuryOnly = candidate.badges?.includes('jury') ?? false;
 
   const handleShare = () => {
     const text = `Votez pour ${candidate.name} au concours Miss & Master IAI-Cameroun! 🌟`;
@@ -48,13 +49,13 @@ export function CandidateProfile({ candidate, onBack, onVote, rank = 0, category
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 pb-8">
       {/* Barre en haut : retour + partage — défile avec la page (disparaît en scrollant vers le bas) */}
-      <header className="flex justify-between items-center px-4 pt-10 pb-4 bg-gray-50 dark:bg-gray-900 border-b border-gray-200/50 dark:border-gray-700/50">
+      <header className="flex justify-between items-center px-4 pt-10 pb-8 mb-4 bg-gray-50 dark:bg-gray-900 border-b border-gray-200/50 dark:border-gray-700/50">
         <Button
           type="button"
           variant="secondary"
           size="icon"
           onClick={() => onBack()}
-          className="rounded-full bg-white dark:bg-gray-800 shadow-md border border-gray-200 dark:border-gray-700 min-w-[44px] min-h-[44px] hover:bg-gray-100 dark:hover:bg-gray-700"
+          className="rounded-full mt-4 mb-4 bg-white dark:bg-gray-800 shadow-md border border-gray-200 dark:border-gray-700 min-w-[44px] min-h-[44px] hover:bg-gray-100 dark:hover:bg-gray-700"
         >
           <ArrowLeft className="w-5 h-5 text-gray-900 dark:text-gray-100" />
         </Button>
@@ -63,7 +64,7 @@ export function CandidateProfile({ candidate, onBack, onVote, rank = 0, category
           variant="secondary"
           size="icon"
           onClick={() => handleShare()}
-          className="rounded-full bg-white dark:bg-gray-800 shadow-md border border-gray-200 dark:border-gray-700 min-w-[44px] min-h-[44px] hover:bg-gray-100 dark:hover:bg-gray-700"
+          className="rounded-full mt-4 mb-4 bg-white dark:bg-gray-800 shadow-md border border-gray-200 dark:border-gray-700 min-w-[44px] min-h-[44px] hover:bg-gray-100 dark:hover:bg-gray-700"
         >
           <Share2 className="w-5 h-5 text-gray-900 dark:text-gray-100" />
         </Button>
@@ -78,8 +79,8 @@ export function CandidateProfile({ candidate, onBack, onVote, rank = 0, category
             animate={{ y: 0, opacity: 1 }}
             transition={{ delay: 0.2 }}
           >
-            <h1 className="text-3xl font-bold text-white mb-1 drop-shadow-md">{candidate.name}</h1>
-            <span className="inline-block px-3 py-1 bg-white/20 backdrop-blur-sm rounded-full text-white text-xs font-medium border border-white/30 uppercase tracking-wider">
+            <h1 className="text-3xl font-bold text-black dark:text-white mb-4 mt-4 drop-shadow-md">{candidate.name}</h1>
+            <span className="inline-block px-3 py-1 mb-4 bg-black dark:bg-white/20 backdrop-blur-sm rounded-full text-black dark:text-white text-xs font-medium border border-black dark:border-white/30 uppercase tracking-wider">
               Candidat {candidate.category.toUpperCase()}
             </span>
           </motion.div>
@@ -91,7 +92,7 @@ export function CandidateProfile({ candidate, onBack, onVote, rank = 0, category
           categoryPercentage={categoryPercentage}
         />
 
-        <div className="px-4 mt-6 space-y-6">
+        <div className="px-4 mt-4 space-y-6">
           <section>
             <h3 className="text-lg font-semibold mb-3 px-1">À Propos</h3>
             <Card className="p-5 border-none shadow-sm bg-white dark:bg-gray-800">
@@ -149,17 +150,23 @@ export function CandidateProfile({ candidate, onBack, onVote, rank = 0, category
           >
             <Heart className={`w-6 h-6 text-rose-500 ${favorites.includes(candidate.id) ? 'fill-current' : ''}`} />
           </Button>
-          <Button
-            type="button"
-            onClick={() => onVote(candidate.id)}
-            className={`flex-1 h-14 rounded-2xl text-lg font-semibold shadow-lg ${
-              candidate.category === 'miss'
-                ? 'bg-gradient-to-r from-[#fbbf24] to-[#f59e0b] hover:from-[#f59e0b] hover:to-[#fbbf24] text-black'
-                : 'bg-gradient-to-r from-[#1e40af] to-[#2563eb] hover:from-[#1e3a8a] hover:to-[#1e40af] text-white'
-            }`}
-          >
-            Voter maintenant
-          </Button>
+          {isJuryOnly ? (
+            <div className="flex-1 h-14 rounded-2xl flex items-center justify-center bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400 text-sm font-medium">
+              Candidat jury — vote non disponible
+            </div>
+          ) : (
+            <Button
+              type="button"
+              onClick={() => onVote(candidate.id)}
+              className={`flex-1 h-14 rounded-2xl text-lg font-semibold shadow-lg ${
+                candidate.category === 'miss'
+                  ? 'bg-gradient-to-r from-[#fbbf24] to-[#f59e0b] hover:from-[#f59e0b] hover:to-[#fbbf24] text-black'
+                  : 'bg-gradient-to-r from-[#1e40af] to-[#2563eb] hover:from-[#1e3a8a] hover:to-[#1e40af] text-white'
+              }`}
+            >
+              Voter maintenant
+            </Button>
+          )}
         </div>
       </footer>
       </div>

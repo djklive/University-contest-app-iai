@@ -139,6 +139,31 @@ app.post('/api/votes/pay', async (req, res) => {
   });
 
   try {
+    await prisma.payment.upsert({
+      where: { reference },
+      create: {
+        reference,
+        status: 'pending',
+        candidateId,
+        packId,
+        amount: pack.price,
+        votesCount: pack.votes,
+        notchpayRef: paymentRef !== reference ? paymentRef : null,
+      },
+      update: {
+        status: 'pending',
+        candidateId,
+        packId,
+        amount: pack.price,
+        votesCount: pack.votes,
+        notchpayRef: paymentRef !== reference ? paymentRef : null,
+      },
+    });
+  } catch (dbErr) {
+    console.error('Payment DB create/update:', dbErr);
+  }
+
+  try {
     const phoneNum = String(phone).replace(/\D/g, '');
     const processUrl = `https://api.notchpay.co/payments/${paymentRef}`;
     const processRes = await fetch(processUrl, {
@@ -159,6 +184,9 @@ app.post('/api/votes/pay', async (req, res) => {
     const processData = await processRes.json().catch(() => ({}));
     if (processRes.status !== 202 && processRes.status !== 200) {
       pendingPayments.delete(reference);
+      try {
+        await prisma.payment.updateMany({ where: { reference }, data: { status: 'failed' } });
+      } catch (e) {}
       return res.status(400).json({
         success: false,
         message: processData.message || 'Échec du lancement du paiement Mobile Money.',
@@ -167,6 +195,9 @@ app.post('/api/votes/pay', async (req, res) => {
   } catch (err) {
     console.error('NotchPay process error:', err);
     pendingPayments.delete(reference);
+    try {
+      await prisma.payment.updateMany({ where: { reference }, data: { status: 'failed' } });
+    } catch (e) {}
     return res.status(500).json({
       success: false,
       message: 'Erreur lors du déclenchement du paiement sur votre téléphone.',
@@ -209,6 +240,11 @@ app.get('/api/payments/:reference/status', async (req, res) => {
             votes: votesCount,
             status: 'complete',
           });
+          try {
+            await prisma.payment.updateMany({ where: { reference }, data: { status: 'complete' } });
+          } catch (e) {
+            console.error('Payment DB update complete:', e);
+          }
           return res.json({
             reference,
             status: 'complete',
@@ -222,6 +258,11 @@ app.get('/api/payments/:reference/status', async (req, res) => {
           if (pending) {
             pending.status = 'failed';
             pendingPayments.set(reference, pending);
+          }
+          try {
+            await prisma.payment.updateMany({ where: { reference }, data: { status: 'failed' } });
+          } catch (e) {
+            console.error('Payment DB update failed:', e);
           }
           return res.json({
             reference,
@@ -270,6 +311,11 @@ app.post('/api/webhooks/notchpay', async (req, res) => {
         votes: votesCount,
         status: 'complete',
       });
+      try {
+        await prisma.payment.updateMany({ where: { reference: ref }, data: { status: 'complete' } });
+      } catch (e) {
+        console.error('Payment DB update complete (webhook):', e);
+      }
     }
   }
   if (event === 'payment.failed' || event === 'charge.failed') {
@@ -279,23 +325,37 @@ app.post('/api/webhooks/notchpay', async (req, res) => {
       p.status = 'failed';
       pendingPayments.set(ref, p);
     }
+    try {
+      if (ref) await prisma.payment.updateMany({ where: { reference: ref }, data: { status: 'failed' } });
+    } catch (e) {
+      console.error('Payment DB update failed (webhook):', e);
+    }
   }
   res.status(200).send('OK');
 });
 
 // --- API données (PostgreSQL) ---
 
-// Liste des candidats avec total des votes
+// Liste des candidats avec total des votes + badge "popular" pour le top 3 par catégorie
+const POPULAR_TOP_N = 3;
 app.get('/api/candidates', async (req, res) => {
   try {
     const candidates = await prisma.candidate.findMany({
       include: { votes: true },
       orderBy: { name: 'asc' },
     });
-    const list = candidates.map((c) => {
+    const withVotes = candidates.map((c) => {
       const votes = c.votes.reduce((s, v) => s + v.votesCount, 0);
       const { votes: _, ...rest } = c;
       return { ...rest, votes };
+    });
+    const missTop = withVotes.filter((c) => c.category === 'miss').sort((a, b) => b.votes - a.votes).slice(0, POPULAR_TOP_N).map((c) => c.id);
+    const masterTop = withVotes.filter((c) => c.category === 'master').sort((a, b) => b.votes - a.votes).slice(0, POPULAR_TOP_N).map((c) => c.id);
+    const popularIds = new Set([...missTop, ...masterTop]);
+    const list = withVotes.map((c) => {
+      const badges = Array.isArray(c.badges) ? [...c.badges] : [];
+      if (popularIds.has(c.id) && !badges.includes('popular')) badges.push('popular');
+      return { ...c, badges };
     });
     res.json(list);
   } catch (e) {

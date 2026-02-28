@@ -40,6 +40,11 @@ export function AdminPayments() {
       </div>
       {error && <p style={{ color: '#dc2626', marginBottom: '1rem' }}>{error}</p>}
       {data && <p style={{ color: '#64748b', marginBottom: '1rem' }}>Total: {data.total}</p>}
+      {data && data.total === 0 && (
+        <p style={{ color: '#64748b', marginBottom: '1rem', fontSize: '0.9rem' }}>
+          Aucun paiement pour l’instant. Les paiements sont enregistrés lorsqu’un visiteur initie un vote (étape de paiement). Les votes déjà en base peuvent ne pas avoir de ligne de paiement si ils ont été enregistrés avant la persistance des paiements.
+        </p>
+      )}
       <div style={{ overflowX: 'auto' }}>
         <table>
           <thead>
