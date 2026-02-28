@@ -46,19 +46,18 @@ export function CandidateProfile({ candidate, onBack, onVote, rank = 0, category
   };
 
   return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      className="min-h-screen pb-24 bg-gray-50 dark:bg-gray-900"
-    >
-      <div className="fixed top-0 left-0 right-0 z-[100] flex justify-between items-center px-4 pt-10 pb-4">
+    <>
+      {/* Barre fixe en haut : retour + partage — ne défile pas */}
+      <header
+        className="fixed top-0 left-0 right-0 z-[200] flex justify-between items-center px-4 pt-10 pb-4 bg-gray-50/95 dark:bg-gray-900/95 backdrop-blur-sm border-b border-gray-200/50 dark:border-gray-700/50"
+        style={{ position: 'fixed' }}
+      >
         <Button
           type="button"
           variant="secondary"
           size="icon"
-          onClick={(e) => { e.preventDefault(); e.stopPropagation(); onBack(); }}
-          className="rounded-full bg-white/90 dark:bg-black/90 backdrop-blur-md shadow-lg hover:bg-white border border-gray-200 dark:border-gray-700 min-w-[44px] min-h-[44px]"
+          onClick={() => onBack()}
+          className="rounded-full bg-white dark:bg-gray-800 shadow-md border border-gray-200 dark:border-gray-700 min-w-[44px] min-h-[44px] hover:bg-gray-100 dark:hover:bg-gray-700"
         >
           <ArrowLeft className="w-5 h-5 text-gray-900 dark:text-gray-100" />
         </Button>
@@ -66,16 +65,18 @@ export function CandidateProfile({ candidate, onBack, onVote, rank = 0, category
           type="button"
           variant="secondary"
           size="icon"
-          onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleShare(); }}
-          className="rounded-full bg-white/90 dark:bg-black/90 backdrop-blur-md shadow-lg hover:bg-white border border-gray-200 dark:border-gray-700 min-w-[44px] min-h-[44px]"
+          onClick={() => handleShare()}
+          className="rounded-full bg-white dark:bg-gray-800 shadow-md border border-gray-200 dark:border-gray-700 min-w-[44px] min-h-[44px] hover:bg-gray-100 dark:hover:bg-gray-700"
         >
           <Share2 className="w-5 h-5 text-gray-900 dark:text-gray-100" />
         </Button>
-      </div>
+      </header>
 
-      <HeroImage src={candidate.photo} alt={candidate.name} />
+      {/* Contenu scrollable au milieu */}
+      <div className="min-h-screen pt-[72px] pb-[88px]">
+        <HeroImage src={candidate.photo} alt={candidate.name} />
 
-      <div className="max-w-md mx-auto relative z-10">
+        <div className="max-w-md mx-auto relative z-10">
         <div className="text-center -mt-20 mb-8 relative z-20">
           <motion.div
             initial={{ y: 20, opacity: 0 }}
@@ -140,32 +141,37 @@ export function CandidateProfile({ candidate, onBack, onVote, rank = 0, category
 
           <div className="h-4" />
         </div>
+        </div>
       </div>
 
-      <div className="fixed bottom-0 left-0 right-0 p-4 bg-white/95 dark:bg-gray-900/95 backdrop-blur-lg border-t border-gray-200 dark:border-gray-800 z-[100] safe-area-pb">
+      {/* Barre fixe en bas : favori + vote — ne défile pas */}
+      <footer
+        className="fixed bottom-0 left-0 right-0 p-4 bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-800 z-[200] safe-area-pb shadow-[0_-4px_12px_rgba(0,0,0,0.08)]"
+        style={{ position: 'fixed' }}
+      >
         <div className="max-w-md mx-auto flex gap-3">
           <Button
             type="button"
             variant="outline"
             size="icon"
             className={`h-14 w-14 rounded-2xl border-2 flex-shrink-0 min-w-[56px] min-h-[56px] ${favorites.includes(candidate.id) ? 'bg-rose-50 border-rose-300 dark:bg-rose-950/30' : ''}`}
-            onClick={(e) => { e.preventDefault(); e.stopPropagation(); toggleFavorite?.(candidate.id); }}
+            onClick={() => toggleFavorite?.(candidate.id)}
           >
             <Heart className={`w-6 h-6 text-rose-500 ${favorites.includes(candidate.id) ? 'fill-current' : ''}`} />
           </Button>
           <Button
             type="button"
-            onClick={(e) => { e.preventDefault(); e.stopPropagation(); onVote(candidate.id); }}
-            className={`flex-1 h-14 rounded-2xl text-lg font-semibold shadow-xl shadow-blue-900/20 ${
+            onClick={() => onVote(candidate.id)}
+            className={`flex-1 h-14 rounded-2xl text-lg font-semibold shadow-lg ${
               candidate.category === 'miss'
                 ? 'bg-gradient-to-r from-[#fbbf24] to-[#f59e0b] hover:from-[#f59e0b] hover:to-[#fbbf24] text-black'
-                : 'bg-gradient-to-r from-[#1e40af] to-[#2563eb] hover:from-[#1e3a8a] hover:to-[#1e40af]'
+                : 'bg-gradient-to-r from-[#1e40af] to-[#2563eb] hover:from-[#1e3a8a] hover:to-[#1e40af] text-white'
             }`}
           >
             Voter maintenant
           </Button>
         </div>
-      </div>
-    </motion.div>
+      </footer>
+    </>
   );
 }

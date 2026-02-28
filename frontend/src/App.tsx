@@ -158,11 +158,11 @@ export default function App() {
             return (
               <motion.div
                 key="profile"
-                initial={{ opacity: 0, x: 100 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: 100 }}
-                transition={{ type: "spring", stiffness: 300, damping: 30 }}
-                className="absolute inset-0 z-50 bg-background"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.2 }}
+                className="absolute inset-0 z-50 bg-gray-50 dark:bg-gray-900"
               >
                 <CandidateProfile
                   candidate={candidate}
