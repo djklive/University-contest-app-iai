@@ -67,6 +67,7 @@ export interface Candidate {
   badges: ('jury' | 'popular')[];
   gallery: string[];
   videoUrl?: string | null;
+  videoUrls?: string[];
 }
 
 export interface VotePack {

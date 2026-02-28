@@ -82,6 +82,7 @@ export const CandidateScalarFieldEnum = {
   badges: 'badges',
   gallery: 'gallery',
   videoUrl: 'videoUrl',
+  videoUrls: 'videoUrls',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
 } as const

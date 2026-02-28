@@ -55,6 +55,7 @@ export type CandidateCountAggregateOutputType = {
   badges: number
   gallery: number
   videoUrl: number
+  videoUrls: number
   createdAt: number
   updatedAt: number
   _all: number
@@ -92,6 +93,7 @@ export type CandidateCountAggregateInputType = {
   badges?: true
   gallery?: true
   videoUrl?: true
+  videoUrls?: true
   createdAt?: true
   updatedAt?: true
   _all?: true
@@ -178,6 +180,7 @@ export type CandidateGroupByOutputType = {
   badges: string[]
   gallery: string[]
   videoUrl: string | null
+  videoUrls: string[]
   createdAt: Date
   updatedAt: Date
   _count: CandidateCountAggregateOutputType | null
@@ -212,6 +215,7 @@ export type CandidateWhereInput = {
   badges?: Prisma.StringNullableListFilter<"Candidate">
   gallery?: Prisma.StringNullableListFilter<"Candidate">
   videoUrl?: Prisma.StringNullableFilter<"Candidate"> | string | null
+  videoUrls?: Prisma.StringNullableListFilter<"Candidate">
   createdAt?: Prisma.DateTimeFilter<"Candidate"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"Candidate"> | Date | string
   votes?: Prisma.VoteListRelationFilter
@@ -226,6 +230,7 @@ export type CandidateOrderByWithRelationInput = {
   badges?: Prisma.SortOrder
   gallery?: Prisma.SortOrder
   videoUrl?: Prisma.SortOrderInput | Prisma.SortOrder
+  videoUrls?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
   votes?: Prisma.VoteOrderByRelationAggregateInput
@@ -243,6 +248,7 @@ export type CandidateWhereUniqueInput = Prisma.AtLeast<{
   badges?: Prisma.StringNullableListFilter<"Candidate">
   gallery?: Prisma.StringNullableListFilter<"Candidate">
   videoUrl?: Prisma.StringNullableFilter<"Candidate"> | string | null
+  videoUrls?: Prisma.StringNullableListFilter<"Candidate">
   createdAt?: Prisma.DateTimeFilter<"Candidate"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"Candidate"> | Date | string
   votes?: Prisma.VoteListRelationFilter
@@ -257,6 +263,7 @@ export type CandidateOrderByWithAggregationInput = {
   badges?: Prisma.SortOrder
   gallery?: Prisma.SortOrder
   videoUrl?: Prisma.SortOrderInput | Prisma.SortOrder
+  videoUrls?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
   _count?: Prisma.CandidateCountOrderByAggregateInput
@@ -276,6 +283,7 @@ export type CandidateScalarWhereWithAggregatesInput = {
   badges?: Prisma.StringNullableListFilter<"Candidate">
   gallery?: Prisma.StringNullableListFilter<"Candidate">
   videoUrl?: Prisma.StringNullableWithAggregatesFilter<"Candidate"> | string | null
+  videoUrls?: Prisma.StringNullableListFilter<"Candidate">
   createdAt?: Prisma.DateTimeWithAggregatesFilter<"Candidate"> | Date | string
   updatedAt?: Prisma.DateTimeWithAggregatesFilter<"Candidate"> | Date | string
 }
@@ -289,6 +297,7 @@ export type CandidateCreateInput = {
   badges?: Prisma.CandidateCreatebadgesInput | string[]
   gallery?: Prisma.CandidateCreategalleryInput | string[]
   videoUrl?: string | null
+  videoUrls?: Prisma.CandidateCreatevideoUrlsInput | string[]
   createdAt?: Date | string
   updatedAt?: Date | string
   votes?: Prisma.VoteCreateNestedManyWithoutCandidateInput
@@ -303,6 +312,7 @@ export type CandidateUncheckedCreateInput = {
   badges?: Prisma.CandidateCreatebadgesInput | string[]
   gallery?: Prisma.CandidateCreategalleryInput | string[]
   videoUrl?: string | null
+  videoUrls?: Prisma.CandidateCreatevideoUrlsInput | string[]
   createdAt?: Date | string
   updatedAt?: Date | string
   votes?: Prisma.VoteUncheckedCreateNestedManyWithoutCandidateInput
@@ -317,6 +327,7 @@ export type CandidateUpdateInput = {
   badges?: Prisma.CandidateUpdatebadgesInput | string[]
   gallery?: Prisma.CandidateUpdategalleryInput | string[]
   videoUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  videoUrls?: Prisma.CandidateUpdatevideoUrlsInput | string[]
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   votes?: Prisma.VoteUpdateManyWithoutCandidateNestedInput
@@ -331,6 +342,7 @@ export type CandidateUncheckedUpdateInput = {
   badges?: Prisma.CandidateUpdatebadgesInput | string[]
   gallery?: Prisma.CandidateUpdategalleryInput | string[]
   videoUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  videoUrls?: Prisma.CandidateUpdatevideoUrlsInput | string[]
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   votes?: Prisma.VoteUncheckedUpdateManyWithoutCandidateNestedInput
@@ -345,6 +357,7 @@ export type CandidateCreateManyInput = {
   badges?: Prisma.CandidateCreatebadgesInput | string[]
   gallery?: Prisma.CandidateCreategalleryInput | string[]
   videoUrl?: string | null
+  videoUrls?: Prisma.CandidateCreatevideoUrlsInput | string[]
   createdAt?: Date | string
   updatedAt?: Date | string
 }
@@ -358,6 +371,7 @@ export type CandidateUpdateManyMutationInput = {
   badges?: Prisma.CandidateUpdatebadgesInput | string[]
   gallery?: Prisma.CandidateUpdategalleryInput | string[]
   videoUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  videoUrls?: Prisma.CandidateUpdatevideoUrlsInput | string[]
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -371,6 +385,7 @@ export type CandidateUncheckedUpdateManyInput = {
   badges?: Prisma.CandidateUpdatebadgesInput | string[]
   gallery?: Prisma.CandidateUpdategalleryInput | string[]
   videoUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  videoUrls?: Prisma.CandidateUpdatevideoUrlsInput | string[]
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -392,6 +407,7 @@ export type CandidateCountOrderByAggregateInput = {
   badges?: Prisma.SortOrder
   gallery?: Prisma.SortOrder
   videoUrl?: Prisma.SortOrder
+  videoUrls?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
 }
@@ -431,6 +447,10 @@ export type CandidateCreategalleryInput = {
   set: string[]
 }
 
+export type CandidateCreatevideoUrlsInput = {
+  set: string[]
+}
+
 export type StringFieldUpdateOperationsInput = {
   set?: string
 }
@@ -447,6 +467,11 @@ export type CandidateUpdategalleryInput = {
 
 export type NullableStringFieldUpdateOperationsInput = {
   set?: string | null
+}
+
+export type CandidateUpdatevideoUrlsInput = {
+  set?: string[]
+  push?: string | string[]
 }
 
 export type DateTimeFieldUpdateOperationsInput = {
@@ -476,6 +501,7 @@ export type CandidateCreateWithoutVotesInput = {
   badges?: Prisma.CandidateCreatebadgesInput | string[]
   gallery?: Prisma.CandidateCreategalleryInput | string[]
   videoUrl?: string | null
+  videoUrls?: Prisma.CandidateCreatevideoUrlsInput | string[]
   createdAt?: Date | string
   updatedAt?: Date | string
 }
@@ -489,6 +515,7 @@ export type CandidateUncheckedCreateWithoutVotesInput = {
   badges?: Prisma.CandidateCreatebadgesInput | string[]
   gallery?: Prisma.CandidateCreategalleryInput | string[]
   videoUrl?: string | null
+  videoUrls?: Prisma.CandidateCreatevideoUrlsInput | string[]
   createdAt?: Date | string
   updatedAt?: Date | string
 }
@@ -518,6 +545,7 @@ export type CandidateUpdateWithoutVotesInput = {
   badges?: Prisma.CandidateUpdatebadgesInput | string[]
   gallery?: Prisma.CandidateUpdategalleryInput | string[]
   videoUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  videoUrls?: Prisma.CandidateUpdatevideoUrlsInput | string[]
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -531,6 +559,7 @@ export type CandidateUncheckedUpdateWithoutVotesInput = {
   badges?: Prisma.CandidateUpdatebadgesInput | string[]
   gallery?: Prisma.CandidateUpdategalleryInput | string[]
   videoUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  videoUrls?: Prisma.CandidateUpdatevideoUrlsInput | string[]
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -575,6 +604,7 @@ export type CandidateSelect<ExtArgs extends runtime.Types.Extensions.InternalArg
   badges?: boolean
   gallery?: boolean
   videoUrl?: boolean
+  videoUrls?: boolean
   createdAt?: boolean
   updatedAt?: boolean
   votes?: boolean | Prisma.Candidate$votesArgs<ExtArgs>
@@ -590,6 +620,7 @@ export type CandidateSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Ext
   badges?: boolean
   gallery?: boolean
   videoUrl?: boolean
+  videoUrls?: boolean
   createdAt?: boolean
   updatedAt?: boolean
 }, ExtArgs["result"]["candidate"]>
@@ -603,6 +634,7 @@ export type CandidateSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Ext
   badges?: boolean
   gallery?: boolean
   videoUrl?: boolean
+  videoUrls?: boolean
   createdAt?: boolean
   updatedAt?: boolean
 }, ExtArgs["result"]["candidate"]>
@@ -616,11 +648,12 @@ export type CandidateSelectScalar = {
   badges?: boolean
   gallery?: boolean
   videoUrl?: boolean
+  videoUrls?: boolean
   createdAt?: boolean
   updatedAt?: boolean
 }
 
-export type CandidateOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "name" | "category" | "photo" | "biography" | "badges" | "gallery" | "videoUrl" | "createdAt" | "updatedAt", ExtArgs["result"]["candidate"]>
+export type CandidateOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "name" | "category" | "photo" | "biography" | "badges" | "gallery" | "videoUrl" | "videoUrls" | "createdAt" | "updatedAt", ExtArgs["result"]["candidate"]>
 export type CandidateInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   votes?: boolean | Prisma.Candidate$votesArgs<ExtArgs>
   _count?: boolean | Prisma.CandidateCountOutputTypeDefaultArgs<ExtArgs>
@@ -642,6 +675,7 @@ export type $CandidatePayload<ExtArgs extends runtime.Types.Extensions.InternalA
     badges: string[]
     gallery: string[]
     videoUrl: string | null
+    videoUrls: string[]
     createdAt: Date
     updatedAt: Date
   }, ExtArgs["result"]["candidate"]>
@@ -1076,6 +1110,7 @@ export interface CandidateFieldRefs {
   readonly badges: Prisma.FieldRef<"Candidate", 'String[]'>
   readonly gallery: Prisma.FieldRef<"Candidate", 'String[]'>
   readonly videoUrl: Prisma.FieldRef<"Candidate", 'String'>
+  readonly videoUrls: Prisma.FieldRef<"Candidate", 'String[]'>
   readonly createdAt: Prisma.FieldRef<"Candidate", 'DateTime'>
   readonly updatedAt: Prisma.FieldRef<"Candidate", 'DateTime'>
 }

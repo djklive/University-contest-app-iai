@@ -355,7 +355,10 @@ app.get('/api/candidates', async (req, res) => {
     const list = withVotes.map((c) => {
       const badges = Array.isArray(c.badges) ? [...c.badges] : [];
       if (popularIds.has(c.id) && !badges.includes('popular')) badges.push('popular');
-      return { ...c, badges };
+      const videoUrls = Array.isArray(c.videoUrls) && c.videoUrls.length > 0
+        ? c.videoUrls
+        : (c.videoUrl ? [c.videoUrl] : []);
+      return { ...c, badges, videoUrls };
     });
     res.json(list);
   } catch (e) {
@@ -374,7 +377,10 @@ app.get('/api/candidates/:id', async (req, res) => {
     if (!c) return res.status(404).json({ error: 'Candidat non trouvé' });
     const votes = c.votes.reduce((s, v) => s + v.votesCount, 0);
     const { votes: vList, ...rest } = c;
-    res.json({ ...rest, votes });
+    const videoUrls = Array.isArray(c.videoUrls) && c.videoUrls.length > 0
+      ? c.videoUrls
+      : (c.videoUrl ? [c.videoUrl] : []);
+    res.json({ ...rest, votes, videoUrls });
   } catch (e) {
     console.error('GET /api/candidates/:id', e);
     res.status(500).json({ error: 'Erreur base de données' });
@@ -448,10 +454,13 @@ app.get('/api/admin/candidates', adminAuth, async (req, res) => {
 
 app.post('/api/admin/candidates', adminAuth, async (req, res) => {
   try {
-    const { name, category, photo, biography, badges, gallery, videoUrl } = req.body;
+    const { name, category, photo, biography, badges, gallery, videoUrl, videoUrls } = req.body;
     if (!name || !category || !photo || !biography) {
       return res.status(400).json({ error: 'name, category, photo, biography requis' });
     }
+    const urls = Array.isArray(videoUrls) && videoUrls.length > 0
+      ? videoUrls
+      : (videoUrl ? [videoUrl] : []);
     const c = await prisma.candidate.create({
       data: {
         name,
@@ -460,7 +469,8 @@ app.post('/api/admin/candidates', adminAuth, async (req, res) => {
         biography,
         badges: Array.isArray(badges) ? badges : [],
         gallery: Array.isArray(gallery) ? gallery : [],
-        videoUrl: videoUrl || null,
+        videoUrl: urls.length > 0 ? urls[0] : null,
+        videoUrls: urls,
       },
     });
     res.status(201).json(c);
@@ -471,18 +481,25 @@ app.post('/api/admin/candidates', adminAuth, async (req, res) => {
 
 app.put('/api/admin/candidates/:id', adminAuth, async (req, res) => {
   try {
-    const { name, category, photo, biography, badges, gallery, videoUrl } = req.body;
+    const { name, category, photo, biography, badges, gallery, videoUrl, videoUrls } = req.body;
+    const data = {
+      ...(name != null && { name }),
+      ...(category != null && { category }),
+      ...(photo != null && { photo }),
+      ...(biography != null && { biography }),
+      ...(badges != null && { badges: Array.isArray(badges) ? badges : [] }),
+      ...(gallery != null && { gallery: Array.isArray(gallery) ? gallery : [] }),
+    };
+    if (videoUrls != null && Array.isArray(videoUrls)) {
+      data.videoUrls = videoUrls;
+      data.videoUrl = videoUrls.length > 0 ? videoUrls[0] : null;
+    } else if (videoUrl != null) {
+      data.videoUrl = videoUrl;
+      data.videoUrls = videoUrl ? [videoUrl] : [];
+    }
     const c = await prisma.candidate.update({
       where: { id: req.params.id },
-      data: {
-        ...(name != null && { name }),
-        ...(category != null && { category }),
-        ...(photo != null && { photo }),
-        ...(biography != null && { biography }),
-        ...(badges != null && { badges: Array.isArray(badges) ? badges : [] }),
-        ...(gallery != null && { gallery: Array.isArray(gallery) ? gallery : [] }),
-        ...(videoUrl != null && { videoUrl }),
-      },
+      data,
     });
     res.json(c);
   } catch (e) {

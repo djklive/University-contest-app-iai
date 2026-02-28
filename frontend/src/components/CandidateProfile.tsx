@@ -8,6 +8,15 @@ import { ImageCarousel } from './ImageCarousel';
 import { motion } from 'framer-motion';
 import type { Candidate } from '../lib/api';
 
+/** Convertit une URL YouTube watch en embed si besoin, sinon retourne l’URL telle quelle. */
+function normalizeVideoUrl(url: string): string {
+  if (!url || typeof url !== 'string') return url;
+  const trimmed = url.trim();
+  const ytMatch = trimmed.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]+)/);
+  if (ytMatch) return `https://www.youtube.com/embed/${ytMatch[1]}`;
+  return trimmed;
+}
+
 interface CandidateProfileProps {
   candidate: Candidate | undefined;
   onBack: () => void;
@@ -116,24 +125,42 @@ export function CandidateProfile({ candidate, onBack, onVote, rank = 0, category
             <ImageCarousel images={candidate.gallery} title="Galerie Photos" />
           </section>
 
-          {candidate.videoUrl && (
-            <section>
-              <h3 className="text-lg font-semibold mb-3 px-1">Vidéo de présentation</h3>
-              <Card className="overflow-hidden rounded-xl border-none shadow-md">
-                <div className="relative aspect-video bg-black">
-                  <iframe
-                    src={candidate.videoUrl}
-                    className="w-full h-full"
-                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                    allowFullScreen
-                  />
-                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                    <Play className="w-12 h-12 text-white/50" />
-                  </div>
+          {(() => {
+            const videos = (candidate.videoUrls && candidate.videoUrls.length > 0)
+              ? candidate.videoUrls
+              : (candidate.videoUrl ? [candidate.videoUrl] : []);
+            if (videos.length === 0) return null;
+            return (
+              <section>
+                <h3 className="text-lg font-semibold mb-3 px-1">
+                  {videos.length === 1 ? 'Vidéo de présentation' : 'Vidéos de présentation'}
+                </h3>
+                <div className="space-y-6">
+                  {videos.map((url, index) => (
+                    <Card key={index} className="overflow-hidden rounded-xl border-none shadow-md">
+                      <div className="relative aspect-video bg-black">
+                        <iframe
+                          src={normalizeVideoUrl(url)}
+                          title={videos.length === 1 ? 'Vidéo de présentation' : `Vidéo ${index + 1}`}
+                          className="w-full h-full"
+                          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                          allowFullScreen
+                        />
+                        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                          <Play className="w-12 h-12 text-white/50" />
+                        </div>
+                      </div>
+                      {videos.length > 1 && (
+                        <div className="px-3 py-2 text-center text-xs text-muted-foreground border-t border-gray-100 dark:border-gray-700">
+                          Vidéo {index + 1} / {videos.length}
+                        </div>
+                      )}
+                    </Card>
+                  ))}
                 </div>
-              </Card>
-            </section>
-          )}
+              </section>
+            );
+          })()}
 
           <div className="h-6" />
         </div>

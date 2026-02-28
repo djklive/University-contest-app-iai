@@ -9,10 +9,11 @@ export function AdminCandidates() {
   const [editing, setEditing] = useState<Candidate | null>(null);
   const [creating, setCreating] = useState(false);
   const [uploading, setUploading] = useState(false);
-  const [form, setForm] = useState<Partial<Candidate>>({ name: '', category: 'miss', photo: '', biography: '', badges: [], gallery: [], videoUrl: '' });
+  const [form, setForm] = useState<Partial<Candidate>>({ name: '', category: 'miss', photo: '', biography: '', badges: [], gallery: [], videoUrl: '', videoUrls: [] });
   const photoInputRef = useRef<HTMLInputElement>(null);
   const galleryInputRef = useRef<HTMLInputElement>(null);
   const videoInputRef = useRef<HTMLInputElement>(null);
+  const videoUrlInputRef = useRef<HTMLInputElement>(null);
 
   const load = async () => {
     setLoading(true);
@@ -32,12 +33,15 @@ export function AdminCandidates() {
   const openCreate = () => {
     setEditing(null);
     setCreating(true);
-    setForm({ name: '', category: 'miss', photo: '', biography: '', badges: [], gallery: [], videoUrl: '' });
+    setForm({ name: '', category: 'miss', photo: '', biography: '', badges: [], gallery: [], videoUrl: '', videoUrls: [] });
   };
 
   const openEdit = (c: Candidate) => {
     setEditing(c);
     setCreating(false);
+    const videoUrls = Array.isArray(c.videoUrls) && c.videoUrls.length > 0
+      ? [...c.videoUrls]
+      : (c.videoUrl ? [c.videoUrl] : []);
     setForm({
       name: c.name,
       category: c.category,
@@ -46,6 +50,7 @@ export function AdminCandidates() {
       badges: [...(c.badges || [])],
       gallery: [...(c.gallery || [])],
       videoUrl: c.videoUrl || '',
+      videoUrls,
     });
   };
 
@@ -56,6 +61,7 @@ export function AdminCandidates() {
     }
     setError('');
     try {
+      const videoUrls = Array.isArray(form.videoUrls) ? form.videoUrls.filter(Boolean) : (form.videoUrl ? [form.videoUrl] : []);
       const payload = {
         name: form.name,
         category: form.category,
@@ -63,7 +69,8 @@ export function AdminCandidates() {
         biography: form.biography,
         badges: Array.isArray(form.badges) ? form.badges : [],
         gallery: Array.isArray(form.gallery) ? form.gallery : [],
-        videoUrl: form.videoUrl || null,
+        videoUrl: videoUrls.length > 0 ? videoUrls[0] : null,
+        videoUrls,
       };
       if (editing) {
         await adminApi.candidates.update(editing.id, payload);
@@ -128,23 +135,39 @@ export function AdminCandidates() {
   };
 
   const handleVideoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    if (!supabase) {
-      setError('Supabase non configuré.');
+    const files = e.target.files;
+    if (!files?.length || !supabase) {
+      if (!supabase) setError('Supabase non configuré.');
       return;
     }
     setError('');
     setUploading(true);
     try {
-      const url = await uploadCandidateFile(file, 'videos');
-      setForm((f) => ({ ...f, videoUrl: url }));
+      const urls: string[] = [];
+      for (let i = 0; i < files.length; i++) {
+        const url = await uploadCandidateFile(files[i], 'videos');
+        urls.push(url);
+      }
+      setForm((f) => ({ ...f, videoUrls: [...(f.videoUrls || []), ...urls] }));
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erreur upload vidéo');
     } finally {
       setUploading(false);
       e.target.value = '';
     }
+  };
+
+  const removeVideoUrl = (index: number) => {
+    setForm((f) => ({
+      ...f,
+      videoUrls: (f.videoUrls || []).filter((_, i) => i !== index),
+    }));
+  };
+
+  const addVideoUrlByInput = (url: string) => {
+    const trimmed = url.trim();
+    if (!trimmed) return;
+    setForm((f) => ({ ...f, videoUrls: [...(f.videoUrls || []), trimmed] }));
   };
 
   const removeGalleryUrl = (index: number) => {
@@ -261,16 +284,49 @@ export function AdminCandidates() {
             </div>
           </div>
           <div className="form-group">
-            <label>Vidéo (optionnel)</label>
+            <label>Vidéos (plusieurs possibles)</label>
             <input
               ref={videoInputRef}
               type="file"
               accept="video/*"
+              multiple
               onChange={handleVideoUpload}
               disabled={uploading}
               style={{ marginBottom: 4 }}
             />
-            <input value={form.videoUrl || ''} onChange={(e) => setForm({ ...form, videoUrl: e.target.value })} placeholder="Ou coller une URL (YouTube, etc.)" />
+            <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
+              <input
+                ref={videoUrlInputRef}
+                type="url"
+                placeholder="Ajouter une URL (YouTube, Supabase, etc.)"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    const v = videoUrlInputRef.current?.value?.trim();
+                    if (v) { addVideoUrlByInput(v); videoUrlInputRef.current!.value = ''; }
+                  }
+                }}
+                style={{ flex: 1 }}
+              />
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={() => {
+                  const v = videoUrlInputRef.current?.value?.trim();
+                  if (v) { addVideoUrlByInput(v); videoUrlInputRef.current!.value = ''; }
+                }}
+              >
+                Ajouter
+              </button>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {(form.videoUrls || []).map((url, i) => (
+                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: 8, background: '#f1f5f9', borderRadius: 6 }}>
+                  <span style={{ flex: 1, fontSize: '0.8rem', wordBreak: 'break-all' }} title={url}>{url}</span>
+                  <button type="button" onClick={() => removeVideoUrl(i)} style={{ background: '#dc2626', color: '#fff', border: 'none', borderRadius: 4, padding: '4px 8px', cursor: 'pointer' }}>Supprimer</button>
+                </div>
+              ))}
+            </div>
           </div>
           {uploading && <p style={{ color: '#0ea5e9', marginBottom: 8 }}>Envoi en cours…</p>}
           <div className="actions">

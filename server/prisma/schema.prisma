@@ -14,7 +14,8 @@ model Candidate {
   biography String   @db.Text
   badges    String[] // ["jury", "popular"]
   gallery   String[] // URLs
-  videoUrl  String?
+  videoUrl  String?  // déprécié : utiliser videoUrls
+  videoUrls String[] // plusieurs URLs vidéo
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   votes     Vote[]

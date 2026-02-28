@@ -49,6 +49,7 @@ export interface Candidate {
   badges: string[];
   gallery: string[];
   videoUrl: string | null;
+  videoUrls?: string[];
 }
 
 export interface Payment {
