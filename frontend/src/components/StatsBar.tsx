@@ -9,7 +9,7 @@ interface StatsBarProps {
 
 export function StatsBar({ rank, votes, categoryPercentage }: StatsBarProps) {
   return (
-    <div className="grid grid-cols-3 gap-2 px-4 -mt-10 relative z-10">
+    <div className="grid grid-cols-3 gap-2 px-4 -mt-10 relative z-10 pt-4">
       <StatCard
         icon={Trophy}
         label="Rang"

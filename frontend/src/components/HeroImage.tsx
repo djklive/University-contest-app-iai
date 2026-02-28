@@ -17,7 +17,7 @@ export function HeroImage({ src, alt }: HeroImageProps) {
   const opacity = useTransform(scrollYProgress, [0, 1], [1, 0.5]);
 
   return (
-    <div ref={ref} className="relative h-[60vh] overflow-hidden rounded-b-3xl shadow-xl">
+    <div ref={ref} className="relative min-h-[45vh] h-[70vh] max-h-[520px] overflow-hidden rounded-b-3xl shadow-xl">
       <motion.div 
         style={{ y, opacity }}
         className="absolute inset-0 w-full h-full"

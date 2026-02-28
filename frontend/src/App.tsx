@@ -79,12 +79,15 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-amber-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
-      <Header 
-        isDarkMode={isDarkMode}
-        onToggleDarkMode={toggleDarkMode}
-        votesRemaining={votesRemaining}
-        totalVotes={totalVotes}
-      />
+      {/* Header masqué sur le profil pour éviter IAI Campus derrière les boutons retour/partage */}
+      {currentView !== 'profile' && (
+        <Header
+          isDarkMode={isDarkMode}
+          onToggleDarkMode={toggleDarkMode}
+          votesRemaining={votesRemaining}
+          totalVotes={totalVotes}
+        />
+      )}
 
       {/* Main Content */}
       <div className="max-w-md mx-auto pt-4 pb-32 min-h-screen">
