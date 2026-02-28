@@ -1,0 +1,3 @@
+-- AlterTable
+ALTER TABLE "Candidate" ALTER COLUMN "badges" DROP DEFAULT,
+ALTER COLUMN "gallery" DROP DEFAULT;

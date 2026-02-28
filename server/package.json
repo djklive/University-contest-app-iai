@@ -5,11 +5,11 @@
   "main": "index.js",
   "type": "module",
   "scripts": {
-    "start": "prisma migrate deploy && node index.js",
+    "start": "prisma migrate deploy && tsx index.js",
     "dev": "node --watch index.js",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate deploy",
-    "prisma:seed": "node prisma/seed.js",
+    "prisma:seed": "tsx prisma/seed.js",
     "postinstall": "prisma generate"
   },
   "dependencies": {
@@ -18,7 +18,8 @@
     "cors": "^2.8.5",
     "dotenv": "^16.6.1",
     "express": "^4.21.0",
-    "pg": "^8.13.0"
+    "pg": "^8.13.0",
+    "tsx": "^4.21.0"
   },
   "devDependencies": {
     "@types/node": "^25.3.2",

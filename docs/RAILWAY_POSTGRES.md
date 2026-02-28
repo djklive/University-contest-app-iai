@@ -83,7 +83,11 @@ DATABASE_URL=${{Postgres.DATABASE_PRIVATE_URL}}
 
 ---
 
-## 7. Prisma 7 (configuration)
+## 7. Build Railway et DATABASE_URL
+
+Lors du **build**, Railway exécute `npm ci` puis `postinstall` → `prisma generate`. À ce moment, la variable `DATABASE_URL` (ou la référence `${{...}}`) n’est parfois pas encore disponible. Pour que le build ne plante pas, `prisma.config.ts` utilise une **URL factice** si `DATABASE_URL` est absent (uniquement pour la génération du client, qui ne se connecte pas à la base). Au **runtime** (démarrage du service), `DATABASE_URL` est bien définie par Railway ; elle est utilisée pour `prisma migrate deploy` et l’application.
+
+## 8. Prisma 7 (configuration)
 
 Ce projet utilise **Prisma 7** avec :
 
