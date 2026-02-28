@@ -9,11 +9,24 @@ import { prisma, recordVote } from './db.js';
 
 const NOTCHPAY_API = 'https://api.notchpay.co';
 const app = express();
-app.use(cors({ origin: true }));
+
+// CORS : autoriser le frontend (APP_URL) et l'admin (ADMIN_APP_URL). Header x-admin-secret autorise pour le preflight.
+const APP_URL = process.env.APP_URL || 'http://localhost:5173';
+const ADMIN_APP_URL = process.env.ADMIN_APP_URL || '';
+const allowedOrigins = [APP_URL, ADMIN_APP_URL].filter(Boolean);
+app.use(cors({
+  origin: (origin, cb) => {
+    if (!origin) return cb(null, true);
+    if (allowedOrigins.length === 0) return cb(null, true);
+    if (allowedOrigins.includes(origin)) return cb(null, true);
+    return cb(null, false);
+  },
+  allowedHeaders: ['Content-Type', 'Authorization', 'x-admin-secret'],
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+}));
 app.use(express.json());
 
 const NOTCHPAY_SECRET = process.env.NOTCHPAY_SECRET_KEY;
-const APP_URL = process.env.APP_URL || 'http://localhost:5173';
 const PORT = process.env.PORT || 3000;
 const ADMIN_SECRET = process.env.ADMIN_SECRET;
 

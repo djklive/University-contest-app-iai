@@ -16,6 +16,14 @@ L’admin est une **application séparée** (`frontend-admin`), déployée à pa
 4. **Variables d’environnement** : ajoute **`VITE_API_URL`** = URL de ton backend (ex. `https://vote-iai-api.up.railway.app`). Sans ça, l’admin ne sait pas vers quel API envoyer les requêtes.
 5. Déploie. L’URL du projet (ex. `https://vote-iai-admin.vercel.app`) est l’URL d’accès à l’admin.
 
+## CORS et variable ADMIN_APP_URL
+
+Pour que l’admin sur Vercel (`https://vote-iai-admin.vercel.app`) puisse appeler le backend sur Railway, le backend doit **autoriser cette origine** en CORS. Sur le **backend** (Railway), ajoute la variable d’environnement :
+
+- **`ADMIN_APP_URL`** = `https://vote-iai-admin.vercel.app` (ou l’URL exacte de ton déploiement admin)
+
+Sans cette variable, le navigateur bloquera les requêtes avec une erreur CORS (« No 'Access-Control-Allow-Origin' header »). Après avoir ajouté `ADMIN_APP_URL` et redéployé le backend, réessaie la connexion depuis l’admin.
+
 ## Sécurité
 
 - **Ne pas exposer `ADMIN_SECRET`** côté frontend : il n’est jamais stocké dans le code ni dans le build. L’utilisateur le saisit à la main à chaque connexion (ou une fois par session).
