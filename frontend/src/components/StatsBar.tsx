@@ -13,7 +13,7 @@ export function StatsBar({ rank, votes, categoryPercentage }: StatsBarProps) {
       <StatCard
         icon={Trophy}
         label="Rang"
-        value={`#${rank}`}
+        value={rank > 0 ? `#${rank}` : '–'}
         color="amber"
       />
       <StatCard
@@ -26,7 +26,7 @@ export function StatsBar({ rank, votes, categoryPercentage }: StatsBarProps) {
       <StatCard
         icon={PieChart}
         label="Part"
-        value={`${categoryPercentage}%`}
+        value={categoryPercentage > 0 ? `${categoryPercentage}%` : '–'}
         color="blue"
       />
     </div>

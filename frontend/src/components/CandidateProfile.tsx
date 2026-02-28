@@ -12,9 +12,13 @@ interface CandidateProfileProps {
   candidate: Candidate | undefined;
   onBack: () => void;
   onVote: (candidateId: string) => void;
+  rank?: number;
+  categoryPercentage?: number;
+  favorites?: string[];
+  toggleFavorite?: (candidateId: string) => void;
 }
 
-export function CandidateProfile({ candidate, onBack, onVote }: CandidateProfileProps) {
+export function CandidateProfile({ candidate, onBack, onVote, rank = 0, categoryPercentage = 0, favorites = [], toggleFavorite }: CandidateProfileProps) {
   if (!candidate) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -48,20 +52,22 @@ export function CandidateProfile({ candidate, onBack, onVote }: CandidateProfile
       exit={{ opacity: 0 }}
       className="min-h-screen pb-24 bg-gray-50 dark:bg-gray-900"
     >
-      <div className="fixed top-0 left-0 right-0 z-50 flex justify-between items-center px-4 pt-10 pb-4 pointer-events-none">
+      <div className="fixed top-0 left-0 right-0 z-[100] flex justify-between items-center px-4 pt-10 pb-4">
         <Button
+          type="button"
           variant="secondary"
           size="icon"
-          onClick={onBack}
-          className="rounded-full bg-white/50 dark:bg-black/50 backdrop-blur-md shadow-sm hover:bg-white/80 dark:hover:bg-black/80 pointer-events-auto"
+          onClick={(e) => { e.preventDefault(); e.stopPropagation(); onBack(); }}
+          className="rounded-full bg-white/90 dark:bg-black/90 backdrop-blur-md shadow-lg hover:bg-white border border-gray-200 dark:border-gray-700 min-w-[44px] min-h-[44px]"
         >
           <ArrowLeft className="w-5 h-5 text-gray-900 dark:text-gray-100" />
         </Button>
         <Button
+          type="button"
           variant="secondary"
           size="icon"
-          onClick={handleShare}
-          className="rounded-full bg-white/50 dark:bg-black/50 backdrop-blur-md shadow-sm hover:bg-white/80 dark:hover:bg-black/80 pointer-events-auto"
+          onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleShare(); }}
+          className="rounded-full bg-white/90 dark:bg-black/90 backdrop-blur-md shadow-lg hover:bg-white border border-gray-200 dark:border-gray-700 min-w-[44px] min-h-[44px]"
         >
           <Share2 className="w-5 h-5 text-gray-900 dark:text-gray-100" />
         </Button>
@@ -84,9 +90,9 @@ export function CandidateProfile({ candidate, onBack, onVote }: CandidateProfile
         </div>
 
         <StatsBar
-          rank={2}
+          rank={rank}
           votes={totalVotes}
-          categoryPercentage={45}
+          categoryPercentage={categoryPercentage}
         />
 
         <div className="px-4 mt-6 space-y-6">
@@ -136,17 +142,20 @@ export function CandidateProfile({ candidate, onBack, onVote }: CandidateProfile
         </div>
       </div>
 
-      <div className="fixed bottom-0 left-0 right-0 p-4 bg-white/80 dark:bg-gray-900/80 backdrop-blur-lg border-t border-gray-200 dark:border-gray-800 z-50 safe-area-pb">
+      <div className="fixed bottom-0 left-0 right-0 p-4 bg-white/95 dark:bg-gray-900/95 backdrop-blur-lg border-t border-gray-200 dark:border-gray-800 z-[100] safe-area-pb">
         <div className="max-w-md mx-auto flex gap-3">
           <Button
+            type="button"
             variant="outline"
             size="icon"
-            className="h-14 w-14 rounded-2xl border-2 flex-shrink-0"
+            className={`h-14 w-14 rounded-2xl border-2 flex-shrink-0 min-w-[56px] min-h-[56px] ${favorites.includes(candidate.id) ? 'bg-rose-50 border-rose-300 dark:bg-rose-950/30' : ''}`}
+            onClick={(e) => { e.preventDefault(); e.stopPropagation(); toggleFavorite?.(candidate.id); }}
           >
-            <Heart className="w-6 h-6 text-rose-500" />
+            <Heart className={`w-6 h-6 text-rose-500 ${favorites.includes(candidate.id) ? 'fill-current' : ''}`} />
           </Button>
           <Button
-            onClick={() => onVote(candidate.id)}
+            type="button"
+            onClick={(e) => { e.preventDefault(); e.stopPropagation(); onVote(candidate.id); }}
             className={`flex-1 h-14 rounded-2xl text-lg font-semibold shadow-xl shadow-blue-900/20 ${
               candidate.category === 'miss'
                 ? 'bg-gradient-to-r from-[#fbbf24] to-[#f59e0b] hover:from-[#f59e0b] hover:to-[#fbbf24] text-black'

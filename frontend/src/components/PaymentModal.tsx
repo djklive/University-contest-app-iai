@@ -70,8 +70,10 @@ export function PaymentModal({
   };
 
   const handlePayment = async () => {
-    if (!phoneNumber.match(/^(6[5-9]|6[2])\d{7}$/)) {
-      setError('Numéro de téléphone invalide (Format: 6XXXXXXXX)');
+    const digitsOnly = phoneNumber.replace(/\D/g, '');
+    const nineDigits = digitsOnly.startsWith('237') ? digitsOnly.slice(3, 12) : digitsOnly.slice(0, 9);
+    if (!nineDigits.match(/^6[2-9]\d{7}$/)) {
+      setError('Numéro invalide. Format: 6XXXXXXXX (ex. 690123456 pour Orange/MTN Cameroun)');
       return;
     }
     if (!candidateId || !selectedPack) return;
@@ -80,7 +82,7 @@ export function PaymentModal({
     setIsLoading(true);
 
     const channel = paymentProvider === 'mtn' ? 'cm.mtn' : 'cm.orange';
-    const phone = phoneNumber.startsWith('237') ? phoneNumber : `237${phoneNumber.replace(/\D/g, '')}`;
+    const phone = `237${nineDigits}`;
 
     const data = await payVote({
       candidateId,
@@ -275,11 +277,11 @@ export function PaymentModal({
                   <Smartphone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                   <Input
                     id="phone"
-                    placeholder="6XXXXXXXX"
+                    placeholder="6XXXXXXXX ou 237 6XXXXXXXX"
                     className="pl-10 h-12"
                     value={phoneNumber}
                     onChange={(e) => {
-                      setPhoneNumber(e.target.value.replace(/\D/g, '').slice(0, 9));
+                      setPhoneNumber(e.target.value.replace(/\D/g, '').slice(0, 12));
                       setError(null);
                     }}
                   />

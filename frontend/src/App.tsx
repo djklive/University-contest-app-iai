@@ -8,7 +8,7 @@ import { CandidateProfile } from './components/CandidateProfile';
 import { PaymentModal } from './components/PaymentModal';
 import { Toaster } from './components/ui/sonner';
 import { AnimatePresence, motion } from 'framer-motion';
-import { getCandidates, getVotePacks, type Candidate, type VotePack } from './lib/api';
+import { getCandidates, getVotePacks, getStats, type Candidate, type VotePack, type Stats } from './lib/api';
 
 type View = 'dashboard' | 'gallery' | 'profile' | 'favorites' | 'profile-user';
 
@@ -17,6 +17,7 @@ export default function App() {
   const [selectedCandidateId, setSelectedCandidateId] = useState<string | null>(null);
   const [candidates, setCandidates] = useState<Candidate[]>([]);
   const [votePacks, setVotePacks] = useState<VotePack[]>([]);
+  const [stats, setStats] = useState<Stats | null>(null);
   const [loading, setLoading] = useState(true);
   const [apiError, setApiError] = useState<string | null>(null);
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
@@ -28,9 +29,10 @@ export default function App() {
     setLoading(true);
     setApiError(null);
     try {
-      const [c, p] = await Promise.all([getCandidates(), getVotePacks()]);
+      const [c, p, s] = await Promise.all([getCandidates(), getVotePacks(), getStats().catch(() => null)]);
       setCandidates(c);
       setVotePacks(p);
+      setStats(s ?? null);
     } catch (e) {
       setApiError(e instanceof Error ? e.message : 'Erreur chargement');
     } finally {
@@ -146,22 +148,34 @@ export default function App() {
             </motion.div>
           )}
 
-          {currentView === 'profile' && selectedCandidateId && (
-            <motion.div
-              key="profile"
-              initial={{ opacity: 0, x: 100 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: 100 }}
-              transition={{ type: "spring", stiffness: 300, damping: 30 }}
-              className="absolute inset-0 z-50 bg-background"
-            >
-              <CandidateProfile
-                candidate={candidates.find((c) => c.id === selectedCandidateId)}
-                onBack={handleBackFromProfile}
-                onVote={handleVote}
-              />
-            </motion.div>
-          )}
+          {currentView === 'profile' && selectedCandidateId && (() => {
+            const candidate = candidates.find((c) => c.id === selectedCandidateId);
+            const ranking = candidate && stats ? (candidate.category === 'miss' ? stats.missRanking : stats.masterRanking) : [];
+            const rankIndex = candidate ? ranking.findIndex((r) => r.id === candidate.id) : -1;
+            const rank = rankIndex >= 0 ? rankIndex + 1 : 0;
+            const categoryTotal = candidate && stats ? (candidate.category === 'miss' ? stats.missVotes : stats.masterVotes) : 0;
+            const categoryPercentage = candidate && categoryTotal > 0 ? Math.round((candidate.votes / categoryTotal) * 100) : 0;
+            return (
+              <motion.div
+                key="profile"
+                initial={{ opacity: 0, x: 100 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: 100 }}
+                transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                className="absolute inset-0 z-50 bg-background"
+              >
+                <CandidateProfile
+                  candidate={candidate}
+                  onBack={handleBackFromProfile}
+                  onVote={handleVote}
+                  rank={rank}
+                  categoryPercentage={categoryPercentage}
+                  favorites={Array.from(favorites)}
+                  toggleFavorite={toggleFavorite}
+                />
+              </motion.div>
+            );
+          })()}
         </AnimatePresence>
       </div>
 
