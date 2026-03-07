@@ -1,7 +1,6 @@
 /**
- * Client API backend Vote IAI (NotchPay)
+ * Client API backend Vote IAI (NotchPay + Stripe)
  * En prod: VITE_API_URL doit être l'URL COMPLÈTE du backend (ex: https://votre-api.up.railway.app)
- * Sans "https://" le navigateur traite l'URL en relatif et appelle Vercel → 404.
  */
 const rawBase = import.meta.env.VITE_API_URL || '';
 const BASE =
@@ -33,6 +32,22 @@ export interface PaymentStatusResponse {
   votes?: number | null;
 }
 
+// --- Stripe ---
+
+export interface PayStripeRequest {
+  candidateId: string;
+  packId: string;
+  amount: number;
+  currency?: string; // 'xaf' par défaut
+}
+
+export interface PayStripeResponse {
+  success: boolean;
+  reference?: string;
+  clientSecret?: string; // PaymentIntent client_secret pour Stripe Elements
+  message?: string;
+}
+
 export async function payVote(body: PayVoteRequest): Promise<PayVoteResponse> {
   const res = await fetch(`${BASE}/api/votes/pay`, {
     method: 'POST',
@@ -41,10 +56,20 @@ export async function payVote(body: PayVoteRequest): Promise<PayVoteResponse> {
   });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
-    return {
-      success: false,
-      message: data.message || `Erreur ${res.status}`,
-    };
+    return { success: false, message: data.message || `Erreur ${res.status}` };
+  }
+  return data;
+}
+
+export async function payStripe(body: PayStripeRequest): Promise<PayStripeResponse> {
+  const res = await fetch(`${BASE}/api/votes/pay-stripe`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    return { success: false, message: data.message || `Erreur ${res.status}` };
   }
   return data;
 }
@@ -55,7 +80,7 @@ export async function getPaymentStatus(reference: string): Promise<PaymentStatus
   return res.json();
 }
 
-// --- Candidats, stats, packs (données réelles) ---
+// --- Candidats, stats, packs ---
 
 export interface Candidate {
   id: string;
@@ -99,6 +124,7 @@ export async function getCandidates(): Promise<Candidate[]> {
     badges: Array.isArray(c.badges) ? c.badges : [],
     gallery: Array.isArray(c.gallery) ? c.gallery : [],
     videoUrl: c.videoUrl ?? undefined,
+    videoUrls: Array.isArray(c.videoUrls) ? c.videoUrls : undefined,
   }));
 }
 
@@ -116,6 +142,7 @@ export async function getCandidate(id: string): Promise<Candidate | null> {
     badges: Array.isArray(c.badges) ? c.badges : [],
     gallery: Array.isArray(c.gallery) ? c.gallery : [],
     videoUrl: c.videoUrl ?? undefined,
+    videoUrls: Array.isArray(c.videoUrls) ? c.videoUrls : undefined,
   };
 }
 

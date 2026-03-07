@@ -91,20 +91,26 @@ export function CandidateGallery({
         <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-4">
           <h3 className="text-white mb-2 font-bold">{candidate.name}</h3>
           <p className="text-gray-300 text-xs mb-3 line-clamp-1">{candidate.biography}</p>
-          <Button
-            onClick={(e) => {
-              e.stopPropagation();
-              onVote(candidate.id);
-            }}
-            size="sm"
-            className={`w-full ${
-              candidate.category === 'miss' 
-                ? 'bg-[#fbbf24] hover:bg-[#f59e0b] text-black' 
-                : 'bg-[#1e40af] hover:bg-[#1e3a8a]'
-            }`}
-          >
-            Voter
-          </Button>
+          {candidate.badges.includes('jury') ? (
+            <div className="w-full text-center text-xs py-1.5 rounded bg-white/20 text-white/70">
+              Candidat jury
+            </div>
+          ) : (
+            <Button
+              onClick={(e) => {
+                e.stopPropagation();
+                onVote(candidate.id);
+              }}
+              size="sm"
+              className={`w-full ${
+                candidate.category === 'miss'
+                  ? 'bg-[#fbbf24] hover:bg-[#f59e0b] text-black'
+                  : 'bg-[#1e40af] hover:bg-[#1e3a8a]'
+              }`}
+            >
+              Voter
+            </Button>
+          )}
         </div>
       </div>
     </Card>
