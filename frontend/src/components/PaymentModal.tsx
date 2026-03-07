@@ -100,8 +100,18 @@ function StripeCardForm({ clientSecret, selectedPack, onSuccess, onError }: Stri
       animate={{ opacity: 1, y: 0 }}
       className="space-y-5"
     >
+      {/* Bandeau mode test Stripe */}
+      {import.meta.env.DEV && (
+        <div className="rounded-lg border border-amber-300 bg-amber-50 dark:bg-amber-950/30 dark:border-amber-700 p-3 text-xs text-amber-800 dark:text-amber-300 space-y-1">
+          <p className="font-semibold">🧪 Mode test Stripe — utilisez une carte de test :</p>
+          <p><span className="font-mono font-bold">4242 4242 4242 4242</span> — Visa (succès)</p>
+          <p><span className="font-mono font-bold">4000 0000 0000 9995</span> — Carte refusée (fonds insuffisants)</p>
+          <p className="text-amber-600 dark:text-amber-400">Date : n'importe quelle date future · CVC : 3 chiffres</p>
+        </div>
+      )}
+
       {/* Résumé montant */}
-      <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/30 dark:to-indigo-950/20 border border-blue-100 dark:border-blue-900 rounded-xl p-4 flex justify-between items-center">
+      <div className="rounded-xl border border-blue-100 dark:border-blue-900 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/30 dark:to-indigo-950/20 p-4 flex justify-between items-center">
         <div>
           <p className="text-xs text-muted-foreground mb-0.5">Pack sélectionné</p>
           <p className="font-bold">{selectedPack?.votes} vote{(selectedPack?.votes ?? 0) > 1 ? 's' : ''}</p>
@@ -112,19 +122,13 @@ function StripeCardForm({ clientSecret, selectedPack, onSuccess, onError }: Stri
         </div>
       </div>
 
-      {/* Badge sécurité */}
-      <div className="flex items-center gap-2 text-xs text-muted-foreground bg-gray-50 dark:bg-gray-800/50 rounded-lg px-3 py-2">
-        <Lock className="w-3 h-3 text-green-600 flex-shrink-0" />
-        <span>Paiement sécurisé par <span className="font-semibold text-[#635bff]">Stripe</span> — vos données ne sont jamais stockées</span>
-      </div>
-
       {/* Nom du titulaire */}
       <div className="space-y-1.5">
         <Label htmlFor="cardholder">Nom du titulaire</Label>
         <Input
           id="cardholder"
           placeholder="JEAN DUPONT"
-          className="h-11 uppercase tracking-wider"
+          className="h-12 uppercase tracking-wider text-base"
           value={cardholderName}
           onChange={(e) => setCardholderName(e.target.value.toUpperCase())}
         />
@@ -133,67 +137,71 @@ function StripeCardForm({ clientSecret, selectedPack, onSuccess, onError }: Stri
       {/* Numéro de carte */}
       <div className="space-y-1.5">
         <Label>Numéro de carte</Label>
-        <div className="relative">
-          <div className="border rounded-md bg-input-background dark:bg-input/30 px-3 py-3 focus-within:border-ring focus-within:ring-ring/50 focus-within:ring-[3px] transition-all">
-            <CardNumberElement
-              options={{ style: STRIPE_ELEMENT_STYLE, showIcon: true }}
-              onChange={(e) => setFieldErrors((prev) => ({ ...prev, number: e.error?.message }))}
-            />
-          </div>
-          {fieldErrors.number && (
-            <p className="text-xs text-red-500 mt-1 flex items-center gap-1">
-              <AlertCircle className="w-3 h-3" /> {fieldErrors.number}
-            </p>
-          )}
+        <div className="border border-input rounded-lg bg-background dark:bg-gray-800 px-3 py-3.5 focus-within:ring-2 focus-within:ring-[#635bff]/50 focus-within:border-[#635bff] transition-all">
+          <CardNumberElement
+            options={{ style: STRIPE_ELEMENT_STYLE, showIcon: true }}
+            onChange={(e) => setFieldErrors((prev) => ({ ...prev, number: e.error?.message }))}
+          />
         </div>
+        {fieldErrors.number && (
+          <p className="text-xs text-red-500 flex items-center gap-1">
+            <AlertCircle className="w-3 h-3" /> {fieldErrors.number}
+          </p>
+        )}
       </div>
 
       {/* Expiration + CVC */}
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-2 gap-4">
         <div className="space-y-1.5">
           <Label>Date d'expiration</Label>
-          <div className="border rounded-md bg-input-background dark:bg-input/30 px-3 py-3 focus-within:border-ring focus-within:ring-ring/50 focus-within:ring-[3px] transition-all">
+          <div className="border border-input rounded-lg bg-background dark:bg-gray-800 px-3 py-3.5 focus-within:ring-2 focus-within:ring-[#635bff]/50 focus-within:border-[#635bff] transition-all">
             <CardExpiryElement
               options={{ style: STRIPE_ELEMENT_STYLE }}
               onChange={(e) => setFieldErrors((prev) => ({ ...prev, expiry: e.error?.message }))}
             />
           </div>
           {fieldErrors.expiry && (
-            <p className="text-xs text-red-500 mt-1">{fieldErrors.expiry}</p>
+            <p className="text-xs text-red-500">{fieldErrors.expiry}</p>
           )}
         </div>
         <div className="space-y-1.5">
           <Label>CVC</Label>
-          <div className="border rounded-md bg-input-background dark:bg-input/30 px-3 py-3 focus-within:border-ring focus-within:ring-ring/50 focus-within:ring-[3px] transition-all">
+          <div className="border border-input rounded-lg bg-background dark:bg-gray-800 px-3 py-3.5 focus-within:ring-2 focus-within:ring-[#635bff]/50 focus-within:border-[#635bff] transition-all">
             <CardCvcElement
               options={{ style: STRIPE_ELEMENT_STYLE }}
               onChange={(e) => setFieldErrors((prev) => ({ ...prev, cvc: e.error?.message }))}
             />
           </div>
           {fieldErrors.cvc && (
-            <p className="text-xs text-red-500 mt-1">{fieldErrors.cvc}</p>
+            <p className="text-xs text-red-500">{fieldErrors.cvc}</p>
           )}
         </div>
       </div>
 
-      {/* Logos cartes acceptées */}
-      <div className="flex items-center gap-2 flex-wrap">
-        <span className="text-xs text-muted-foreground">Cartes acceptées :</span>
-        {['VISA', 'MC', 'AMEX'].map((card) => (
-          <span
-            key={card}
-            className="text-[10px] font-bold px-2 py-0.5 rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 tracking-wider"
-          >
-            {card}
-          </span>
-        ))}
+      {/* Cartes acceptées + sécurité */}
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex items-center gap-1.5 flex-wrap">
+          <span className="text-xs text-muted-foreground">Cartes :</span>
+          {['VISA', 'MC', 'AMEX'].map((card) => (
+            <span
+              key={card}
+              className="text-[10px] font-bold px-2 py-0.5 rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 tracking-wider"
+            >
+              {card}
+            </span>
+          ))}
+        </div>
+        <div className="flex items-center gap-1 text-xs text-muted-foreground">
+          <Lock className="w-3 h-3 text-green-600" />
+          <span>Sécurisé par <span className="font-semibold text-[#635bff]">Stripe</span></span>
+        </div>
       </div>
 
       {/* Bouton confirmer */}
       <Button
         onClick={handleConfirm}
         disabled={isConfirming || !stripe}
-        className="w-full h-13 text-base font-semibold bg-gradient-to-r from-[#635bff] to-[#4f46e5] hover:from-[#4f46e5] hover:to-[#3730a3] text-white rounded-xl shadow-lg disabled:opacity-60"
+        className="w-full h-12 text-base font-semibold bg-gradient-to-r from-[#635bff] to-[#4f46e5] hover:from-[#4f46e5] hover:to-[#3730a3] text-white rounded-xl shadow-lg disabled:opacity-60"
       >
         {isConfirming ? (
           <>
