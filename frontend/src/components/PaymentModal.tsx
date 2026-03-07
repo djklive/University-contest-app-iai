@@ -98,20 +98,12 @@ function StripeCardForm({ clientSecret, selectedPack, onSuccess, onError }: Stri
     <motion.div
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
-      className="space-y-5"
+      className="flex flex-col gap-4"
     >
-      {/* Bandeau mode test Stripe */}
-      {import.meta.env.DEV && (
-        <div className="rounded-lg border border-amber-300 bg-amber-50 dark:bg-amber-950/30 dark:border-amber-700 p-3 text-xs text-amber-800 dark:text-amber-300 space-y-1">
-          <p className="font-semibold">🧪 Mode test Stripe — utilisez une carte de test :</p>
-          <p><span className="font-mono font-bold">4242 4242 4242 4242</span> — Visa (succès)</p>
-          <p><span className="font-mono font-bold">4000 0000 0000 9995</span> — Carte refusée (fonds insuffisants)</p>
-          <p className="text-amber-600 dark:text-amber-400">Date : n'importe quelle date future · CVC : 3 chiffres</p>
-        </div>
-      )}
+      
 
       {/* Résumé montant */}
-      <div className="rounded-xl border border-blue-100 dark:border-blue-900 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/30 dark:to-indigo-950/20 p-4 flex justify-between items-center">
+      {/* <div className="rounded-xl border border-blue-100 dark:border-blue-900 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/30 dark:to-indigo-950/20 p-4 mt-4 mb-4 flex justify-between items-center">
         <div>
           <p className="text-xs text-muted-foreground mb-0.5">Pack sélectionné</p>
           <p className="font-bold">{selectedPack?.votes} vote{(selectedPack?.votes ?? 0) > 1 ? 's' : ''}</p>
@@ -120,10 +112,10 @@ function StripeCardForm({ clientSecret, selectedPack, onSuccess, onError }: Stri
           <p className="text-xs text-muted-foreground mb-0.5">Total</p>
           <p className="font-bold text-[#1e40af] text-xl">{selectedPack?.price} FCFA</p>
         </div>
-      </div>
+      </div> */}
 
       {/* Nom du titulaire */}
-      <div className="space-y-1.5">
+      <div className="flex flex-col gap-4">
         <Label htmlFor="cardholder">Nom du titulaire</Label>
         <Input
           id="cardholder"
@@ -135,7 +127,7 @@ function StripeCardForm({ clientSecret, selectedPack, onSuccess, onError }: Stri
       </div>
 
       {/* Numéro de carte */}
-      <div className="space-y-1.5">
+      <div className="flex flex-col gap-4">
         <Label>Numéro de carte</Label>
         <div className="border border-input rounded-lg bg-background dark:bg-gray-800 px-3 py-3.5 focus-within:ring-2 focus-within:ring-[#635bff]/50 focus-within:border-[#635bff] transition-all">
           <CardNumberElement
@@ -152,7 +144,7 @@ function StripeCardForm({ clientSecret, selectedPack, onSuccess, onError }: Stri
 
       {/* Expiration + CVC */}
       <div className="grid grid-cols-2 gap-4">
-        <div className="space-y-1.5">
+        <div className="flex flex-col gap-4">
           <Label>Date d'expiration</Label>
           <div className="border border-input rounded-lg bg-background dark:bg-gray-800 px-3 py-3.5 focus-within:ring-2 focus-within:ring-[#635bff]/50 focus-within:border-[#635bff] transition-all">
             <CardExpiryElement
@@ -164,7 +156,7 @@ function StripeCardForm({ clientSecret, selectedPack, onSuccess, onError }: Stri
             <p className="text-xs text-red-500">{fieldErrors.expiry}</p>
           )}
         </div>
-        <div className="space-y-1.5">
+        <div className="flex flex-col gap-4">
           <Label>CVC</Label>
           <div className="border border-input rounded-lg bg-background dark:bg-gray-800 px-3 py-3.5 focus-within:ring-2 focus-within:ring-[#635bff]/50 focus-within:border-[#635bff] transition-all">
             <CardCvcElement
@@ -511,7 +503,7 @@ export function PaymentModal({
               className="space-y-5"
             >
               {/* Onglets méthode */}
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-3 gap-4">
                 {[
                   { key: 'orange', label: 'Orange Money', emoji: '🟠', activeColor: 'border-[#ff7900] bg-orange-50 dark:bg-orange-950/20' },
                   { key: 'mtn', label: 'MTN MoMo', emoji: '🟡', activeColor: 'border-[#ffcc00] bg-yellow-50 dark:bg-yellow-950/20' },
@@ -520,7 +512,7 @@ export function PaymentModal({
                   <button
                     key={method.key}
                     onClick={() => handleProviderChange(method.key as 'orange' | 'mtn' | 'card')}
-                    className={`flex flex-col items-center gap-1 p-2.5 rounded-xl border-2 transition-all text-xs font-medium ${
+                    className={`flex flex-col items-center gap-4 mb-4 p-2.5 rounded-xl border-2 transition-all text-xs font-medium ${
                       paymentProvider === method.key
                         ? method.activeColor
                         : 'border-gray-200 dark:border-gray-700'
@@ -542,14 +534,14 @@ export function PaymentModal({
                     exit={{ opacity: 0, y: -8 }}
                     className="space-y-4"
                   >
-                    <div className="bg-gray-50 dark:bg-gray-800 p-4 rounded-lg flex justify-between items-center">
+                    <div className="bg-gray-50 dark:bg-gray-800 p-4 mb-4 rounded-lg flex justify-between items-center">
                       <span className="text-sm text-muted-foreground">Total à payer</span>
                       <span className="font-bold text-xl">{selectedPack?.price} FCFA</span>
                     </div>
 
-                    <div className="space-y-2">
+                    <div className="flex flex-col gap-4">
                       <Label htmlFor="phone">Numéro {paymentProvider === 'orange' ? 'Orange' : 'MTN'}</Label>
-                      <div className="relative">
+                      <div className="relative mb-4">
                         <Smartphone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                         <Input
                           id="phone"
@@ -620,9 +612,9 @@ export function PaymentModal({
                       <p className="text-sm text-muted-foreground">Initialisation du paiement sécurisé...</p>
                     </motion.div>
                   ) : stripeClientSecret ? (
-                    <motion.div key="stripe-form" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+                    <motion.div key="stripe-form" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col gap-4">
                       {error && (
-                        <div className="flex items-center gap-2 text-red-500 text-sm mb-3">
+                        <div className="flex items-center gap-2 text-red-500 text-sm mb-4">
                           <AlertCircle className="w-4 h-4 flex-shrink-0" />
                           <span>{error}</span>
                         </div>
@@ -640,7 +632,7 @@ export function PaymentModal({
                       </Button>
                     </motion.div>
                   ) : (
-                    <motion.div key="stripe-error" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-3">
+                    <motion.div key="stripe-error" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col gap-4">
                       {error && (
                         <div className="flex items-center gap-2 text-red-500 text-sm">
                           <AlertCircle className="w-4 h-4 flex-shrink-0" />
