@@ -1,9 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
-import { Smartphone, CreditCard, Check, AlertCircle, Loader2, Globe, Lock } from 'lucide-react';
+import { Smartphone, Check, AlertCircle, Loader2, Globe, Lock } from 'lucide-react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
-import { RadioGroup, RadioGroupItem } from './ui/radio-group';
 import {
   Dialog,
   DialogContent,
@@ -46,13 +45,12 @@ const STRIPE_ELEMENT_STYLE = {
 // ─── Sous-composant formulaire carte Stripe ────────────────────────────────────
 interface StripeCardFormProps {
   clientSecret: string;
-  reference: string;
   selectedPack: VotePack | undefined;
   onSuccess: () => void;
   onError: (msg: string) => void;
 }
 
-function StripeCardForm({ clientSecret, reference, selectedPack, onSuccess, onError }: StripeCardFormProps) {
+function StripeCardForm({ clientSecret, selectedPack, onSuccess, onError }: StripeCardFormProps) {
   const stripe = useStripe();
   const elements = useElements();
   const [isConfirming, setIsConfirming] = useState(false);
@@ -624,7 +622,6 @@ export function PaymentModal({
                       <Elements stripe={stripePromise} options={{ clientSecret: stripeClientSecret }}>
                         <StripeCardForm
                           clientSecret={stripeClientSecret}
-                          reference={paymentReference ?? ''}
                           selectedPack={selectedPack}
                           onSuccess={handleStripeSuccess}
                           onError={(msg) => setError(msg)}
