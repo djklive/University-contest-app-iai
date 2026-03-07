@@ -27,8 +27,9 @@ import {
   useElements,
 } from '@stripe/react-stripe-js';
 
-// Clé publique Stripe (variable d'env Vite)
-const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLIC_KEY || '');
+// Initialisation lazy — évite l'erreur "empty string" si la clé n'est pas définie
+const STRIPE_KEY = import.meta.env.VITE_STRIPE_PUBLIC_KEY as string | undefined;
+const stripePromise = STRIPE_KEY ? loadStripe(STRIPE_KEY) : null;
 
 // ─── Styles Stripe Elements ────────────────────────────────────────────────────
 const STRIPE_ELEMENT_STYLE = {
@@ -238,7 +239,8 @@ export function PaymentModal({
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showConfetti, setShowConfetti] = useState(false);
-  const [paymentReference, setPaymentReference] = useState<string | null>(null);
+  // Référence mobile money (NotchPay) — distinct du paiement Stripe
+  const [mobileReference, setMobileReference] = useState<string | null>(null);
 
   // Stripe — clientSecret retourné par le backend
   const [stripeClientSecret, setStripeClientSecret] = useState<string | null>(null);
@@ -254,8 +256,9 @@ export function PaymentModal({
       setError(null);
       setShowConfetti(false);
       setIsLoading(false);
-      setPaymentReference(null);
+      setMobileReference(null);
       setStripeClientSecret(null);
+      setPaymentProvider('orange');
       if (pollIntervalRef.current) {
         clearInterval(pollIntervalRef.current);
         pollIntervalRef.current = null;
@@ -295,7 +298,7 @@ export function PaymentModal({
       return;
     }
 
-    setPaymentReference(data.reference);
+    setMobileReference(data.reference);
     const ref = data.reference;
     const maxAttempts = 48;
     let attempts = 0;
@@ -316,14 +319,14 @@ export function PaymentModal({
         pollIntervalRef.current = null;
         setError('Paiement refusé. Vous pouvez réessayer.');
         setIsLoading(false);
-        setPaymentReference(null);
+        setMobileReference(null);
       }
       if (attempts >= maxAttempts) {
         clearInterval(pollIntervalRef.current!);
         pollIntervalRef.current = null;
         setError('Délai dépassé. Si vous avez confirmé sur votre téléphone, rechargez la page.');
         setIsLoading(false);
-        setPaymentReference(null);
+        setMobileReference(null);
       }
     }, 2500);
 
@@ -350,7 +353,6 @@ export function PaymentModal({
     }
 
     setStripeClientSecret(data.clientSecret);
-    setPaymentReference(data.reference ?? null);
     setIsLoading(false);
   };
 
@@ -372,10 +374,20 @@ export function PaymentModal({
     }
   };
 
-  // Quand on change de méthode sur l'étape 2, reset stripe si besoin
+  // Quand on change de méthode sur l'étape 2 : reset complet de l'état de paiement
   const handleProviderChange = (v: 'orange' | 'mtn' | 'card') => {
     setPaymentProvider(v);
     setError(null);
+    setMobileReference(null);
+    setIsLoading(false);
+    if (pollIntervalRef.current) {
+      clearInterval(pollIntervalRef.current);
+      pollIntervalRef.current = null;
+    }
+    // Réinitialiser Stripe si on revient à une méthode mobile
+    if (v !== 'card') {
+      setStripeClientSecret(null);
+    }
     if (v === 'card' && step === 2 && !stripeClientSecret) {
       handleStripeInit();
     }
@@ -389,24 +401,28 @@ export function PaymentModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-md md:max-w-lg max-h-[92vh] overflow-y-auto dark:bg-gray-900/95 border-none shadow-2xl p-6 gap-6">
+      <DialogContent className="sm:max-w-md md:max-w-lg flex flex-col max-h-[92vh] dark:bg-gray-900/95 border-none shadow-2xl p-0 gap-0 overflow-hidden">
         {showConfetti && <ConfettiAnimation />}
 
-        <DialogHeader>
-          <DialogTitle className="text-center text-xl font-bold">
-            {step === 3 ? 'Félicitations! 🎉' : 'Effectuer un vote'}
-          </DialogTitle>
-          <DialogDescription className="text-center">
-            {step === 3
-              ? 'Votre vote a été enregistré avec succès.'
-              : 'Choisissez un pack et votre mode de paiement.'}
-          </DialogDescription>
-        </DialogHeader>
-
-        <div className="py-2">
-          <Stepper steps={steps} currentStep={step} />
+        {/* En-tête fixe */}
+        <div className="px-6 pt-6 pb-4 shrink-0">
+          <DialogHeader>
+            <DialogTitle className="text-center text-xl font-bold">
+              {step === 3 ? 'Félicitations! 🎉' : 'Effectuer un vote'}
+            </DialogTitle>
+            <DialogDescription className="text-center">
+              {step === 3
+                ? 'Votre vote a été enregistré avec succès.'
+                : 'Choisissez un pack et votre mode de paiement.'}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="mt-4">
+            <Stepper steps={steps} currentStep={step} />
+          </div>
         </div>
 
+        {/* Corps scrollable */}
+        <div className="flex-1 overflow-y-auto px-6 pb-6">
         <AnimatePresence mode="wait">
           {/* ─── ÉTAPE 1 : Choix du pack ─────────────────────────────────── */}
           {step === 1 && (
@@ -444,50 +460,7 @@ export function PaymentModal({
                 ))}
               </div>
 
-              {/* Choix méthode sur étape 1 (preview) */}
-              <div className="mt-2">
-                <p className="text-sm font-medium text-muted-foreground mb-3">Moyen de paiement</p>
-                <div className="grid grid-cols-3 gap-2">
-                  {/* Orange Money */}
-                  <button
-                    onClick={() => setPaymentProvider('orange')}
-                    className={`flex flex-col items-center gap-1.5 p-3 rounded-xl border-2 transition-all text-sm font-medium ${
-                      paymentProvider === 'orange'
-                        ? 'border-[#ff7900] bg-orange-50 dark:bg-orange-950/20'
-                        : 'border-gray-200 dark:border-gray-700 hover:border-orange-300'
-                    }`}
-                  >
-                    <span className="text-lg">🟠</span>
-                    <span className="text-xs text-center leading-tight">Orange Money</span>
-                  </button>
-                  {/* MTN MoMo */}
-                  <button
-                    onClick={() => setPaymentProvider('mtn')}
-                    className={`flex flex-col items-center gap-1.5 p-3 rounded-xl border-2 transition-all text-sm font-medium ${
-                      paymentProvider === 'mtn'
-                        ? 'border-[#ffcc00] bg-yellow-50 dark:bg-yellow-950/20'
-                        : 'border-gray-200 dark:border-gray-700 hover:border-yellow-300'
-                    }`}
-                  >
-                    <span className="text-lg">🟡</span>
-                    <span className="text-xs text-center leading-tight">MTN MoMo</span>
-                  </button>
-                  {/* Carte bancaire */}
-                  <button
-                    onClick={() => setPaymentProvider('card')}
-                    className={`flex flex-col items-center gap-1.5 p-3 rounded-xl border-2 transition-all text-sm font-medium ${
-                      paymentProvider === 'card'
-                        ? 'border-[#635bff] bg-indigo-50 dark:bg-indigo-950/20'
-                        : 'border-gray-200 dark:border-gray-700 hover:border-indigo-300'
-                    }`}
-                  >
-                    <Globe className="w-5 h-5 text-[#635bff]" />
-                    <span className="text-xs text-center leading-tight">Carte Visa/MC</span>
-                  </button>
-                </div>
-              </div>
-
-              <Button onClick={handleNextStep} className="w-full h-12 text-base mt-4 bg-[#1e40af] hover:bg-[#1e3a8a]">
+              <Button onClick={handleNextStep} className="w-full h-12 text-base mt-2 bg-[#1e40af] hover:bg-[#1e3a8a]">
                 Continuer
               </Button>
             </motion.div>
@@ -500,19 +473,20 @@ export function PaymentModal({
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -20 }}
-              className="space-y-5"
+              className="flex flex-col gap-4"
             >
               {/* Onglets méthode */}
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-3 gap-2">
                 {[
                   { key: 'orange', label: 'Orange Money', emoji: '🟠', activeColor: 'border-[#ff7900] bg-orange-50 dark:bg-orange-950/20' },
                   { key: 'mtn', label: 'MTN MoMo', emoji: '🟡', activeColor: 'border-[#ffcc00] bg-yellow-50 dark:bg-yellow-950/20' },
                   { key: 'card', label: 'Carte', icon: <Globe className="w-4 h-4 text-[#635bff]" />, activeColor: 'border-[#635bff] bg-indigo-50 dark:bg-indigo-950/20' },
                 ].map((method) => (
                   <button
+                    type="button"
                     key={method.key}
                     onClick={() => handleProviderChange(method.key as 'orange' | 'mtn' | 'card')}
-                    className={`flex flex-col items-center gap-4 mb-4 p-2.5 rounded-xl border-2 transition-all text-xs font-medium ${
+                    className={`flex flex-col items-center gap-4 p-4 rounded-xl border-2 transition-all text-xs font-medium ${
                       paymentProvider === method.key
                         ? method.activeColor
                         : 'border-gray-200 dark:border-gray-700'
@@ -526,76 +500,64 @@ export function PaymentModal({
 
               {/* ── FORMULAIRE MOBILE MONEY ── */}
               {(paymentProvider === 'orange' || paymentProvider === 'mtn') && (
-                <AnimatePresence mode="wait">
-                  <motion.div
-                    key={paymentProvider}
-                    initial={{ opacity: 0, y: 8 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -8 }}
-                    className="space-y-4"
-                  >
-                    <div className="bg-gray-50 dark:bg-gray-800 p-4 mb-4 rounded-lg flex justify-between items-center">
-                      <span className="text-sm text-muted-foreground">Total à payer</span>
-                      <span className="font-bold text-xl">{selectedPack?.price} FCFA</span>
+                <div className="flex flex-col gap-3">
+                  <div className="bg-gray-50 dark:bg-gray-800 p-4 mb-4 rounded-lg flex justify-between items-center">
+                    <span className="text-sm text-muted-foreground">Total à payer</span>
+                    <span className="font-bold text-xl">{selectedPack?.price} FCFA</span>
+                  </div>
+
+                  <div className="flex flex-col gap-4">
+                    <Label htmlFor="phone">Numéro {paymentProvider === 'orange' ? 'Orange' : 'MTN'}</Label>
+                    <div className="relative">
+                      <Smartphone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                      <Input
+                        id="phone"
+                        placeholder="6XXXXXXXX ou 237 6XXXXXXXX"
+                        className="pl-10 h-11"
+                        value={phoneNumber}
+                        onChange={(e) => {
+                          setPhoneNumber(e.target.value.replace(/\D/g, '').slice(0, 12));
+                          setError(null);
+                        }}
+                      />
                     </div>
+                  </div>
 
-                    <div className="flex flex-col gap-4">
-                      <Label htmlFor="phone">Numéro {paymentProvider === 'orange' ? 'Orange' : 'MTN'}</Label>
-                      <div className="relative mb-4">
-                        <Smartphone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                        <Input
-                          id="phone"
-                          placeholder="6XXXXXXXX ou 237 6XXXXXXXX"
-                          className="pl-10 h-12"
-                          value={phoneNumber}
-                          onChange={(e) => {
-                            setPhoneNumber(e.target.value.replace(/\D/g, '').slice(0, 12));
-                            setError(null);
-                          }}
-                        />
-                      </div>
+                  {error && (
+                    <div className="flex items-center gap-2 text-red-500 text-sm">
+                      <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                      <span>{error}</span>
                     </div>
+                  )}
 
-                    {error && (
-                      <div className="flex items-center gap-2 text-red-500 text-sm">
-                        <AlertCircle className="w-4 h-4 flex-shrink-0" />
-                        <span>{error}</span>
-                      </div>
-                    )}
-
-                    {paymentReference ? (
-                      <div className="rounded-xl bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-900 p-4 text-center space-y-2">
-                        <Loader2 className="w-8 h-8 animate-spin mx-auto text-[#1e40af]" />
-                        <p className="font-medium text-sm">Paiement envoyé !</p>
-                        <p className="text-xs text-muted-foreground">
-                          Confirmez la transaction sur votre téléphone. Mise à jour automatique.
-                        </p>
-                        {error && <p className="text-xs text-red-500">{error}</p>}
-                      </div>
-                    ) : (
-                      <div className="flex gap-3">
-                        <Button variant="outline" onClick={() => setStep(1)} className="flex-1 h-12">
-                          Retour
-                        </Button>
-                        <Button
-                          onClick={handleMobileMoneyPayment}
-                          disabled={isLoading || !phoneNumber}
-                          className={`flex-[2] h-12 ${
-                            paymentProvider === 'orange'
-                              ? 'bg-[#ff7900] hover:bg-[#e06a00] text-white'
-                              : 'bg-[#ffcc00] hover:bg-[#e6b800] text-black'
-                          }`}
-                        >
-                          {isLoading ? (
-                            <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Traitement...</>
-                          ) : (
-                            <><Smartphone className="w-4 h-4 mr-2" />Payer {selectedPack?.price} FCFA</>
-                          )}
-                        </Button>
-                      </div>
-                    )}
-                  </motion.div>
-                </AnimatePresence>
+                  {mobileReference ? (
+                    <div className="rounded-xl bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-900 p-4 text-center space-y-2">
+                      <Loader2 className="w-8 h-8 animate-spin mx-auto text-[#1e40af]" />
+                      <p className="font-medium text-sm">Paiement envoyé !</p>
+                      <p className="text-xs text-muted-foreground">
+                        Confirmez la transaction sur votre téléphone. Mise à jour automatique.
+                      </p>
+                      {error && <p className="text-xs text-red-500">{error}</p>}
+                    </div>
+                  ) : (
+                    <div className="flex gap-3 pt-1">
+                      <Button type="button" variant="outline" onClick={() => setStep(1)} className="flex-1 h-11">
+                        Retour
+                      </Button>
+                      <Button
+                        type="button"
+                        onClick={handleMobileMoneyPayment}
+                        disabled={isLoading || !phoneNumber}
+                      >
+                        {isLoading ? (
+                          <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Traitement...</>
+                        ) : (
+                          <><Smartphone className="w-4 h-4 mr-2" />Payer {selectedPack?.price} FCFA</>
+                        )}
+                      </Button>
+                    </div>
+                  )}
+                </div>
               )}
 
               {/* ── FORMULAIRE CARTE STRIPE ── */}
@@ -619,14 +581,21 @@ export function PaymentModal({
                           <span>{error}</span>
                         </div>
                       )}
-                      <Elements stripe={stripePromise} options={{ clientSecret: stripeClientSecret }}>
-                        <StripeCardForm
-                          clientSecret={stripeClientSecret}
-                          selectedPack={selectedPack}
-                          onSuccess={handleStripeSuccess}
-                          onError={(msg) => setError(msg)}
-                        />
-                      </Elements>
+                      {stripePromise ? (
+                        <Elements stripe={stripePromise} options={{ clientSecret: stripeClientSecret }}>
+                          <StripeCardForm
+                            clientSecret={stripeClientSecret}
+                            selectedPack={selectedPack}
+                            onSuccess={handleStripeSuccess}
+                            onError={(msg) => setError(msg)}
+                          />
+                        </Elements>
+                      ) : (
+                        <div className="flex items-center gap-2 text-red-500 text-sm">
+                          <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                          <span>Clé Stripe manquante (VITE_STRIPE_PUBLIC_KEY non définie).</span>
+                        </div>
+                      )}
                       <Button variant="outline" onClick={() => setStep(1)} className="w-full mt-3 h-10">
                         ← Retour au choix du pack
                       </Button>
@@ -682,6 +651,7 @@ export function PaymentModal({
             </motion.div>
           )}
         </AnimatePresence>
+        </div>{/* fin corps scrollable */}
       </DialogContent>
     </Dialog>
   );
