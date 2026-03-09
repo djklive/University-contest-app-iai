@@ -394,26 +394,59 @@ app.get('/api/payments/:reference/status', async (req, res) => {
     return res.status(404).json({ reference, status: 'unknown' });
   }
 
-  // ── NotchPay (logique originale) ──
+  // ── NotchPay ──
   if (NOTCHPAY_SECRET) {
-    const notchpayRef = pending?.notchpayRef || reference;
+    // Si le serveur a redémarré, pending peut être null → on recharge depuis la DB
+    let dbPayment = null;
+    if (!pending) {
+      try {
+        dbPayment = await prisma.payment.findUnique({ where: { reference } });
+        if (dbPayment) {
+          // Remettre en mémoire pour les prochains polls
+          pendingPayments.set(reference, {
+            candidateId: dbPayment.candidateId,
+            packId: dbPayment.packId,
+            votes: dbPayment.votesCount,
+            amount: dbPayment.amount,
+            status: dbPayment.status,
+            provider: dbPayment.provider,
+            notchpayRef: dbPayment.notchpayRef,
+          });
+        }
+      } catch (e) {
+        console.error('DB lookup error:', e);
+      }
+    }
+
+    const resolved = pending ?? (dbPayment ? pendingPayments.get(reference) : null);
+
+    // Si déjà complete en DB, répondre directement sans repoller NotchPay
+    if (resolved?.status === 'complete') {
+      return res.json({ reference, status: 'complete', candidateId: resolved.candidateId, votes: resolved.votes });
+    }
+
+    // Utiliser la référence NotchPay réelle (pas la référence locale)
+    const notchpayRef = resolved?.notchpayRef || reference;
     try {
       const payment = await notchpayRetrievePayment(notchpayRef);
       if (payment) {
-        const status = (payment?.transaction?.status ?? payment?.payment?.status ?? payment?.status ?? 'unknown').toLowerCase();
+        const rawStatus = payment?.transaction?.status ?? payment?.payment?.status ?? payment?.status ?? 'unknown';
+        const status = rawStatus.toLowerCase();
+        console.log(`[NotchPay status] ref=${notchpayRef} status=${status}`);
+
         const meta = payment?.transaction?.customer_meta ?? payment?.customer_meta ?? payment?.metadata ?? {};
-        const candidateId = meta.candidateId ?? pending?.candidateId;
-        const votes = meta.votes ?? pending?.votes;
+        const candidateId = meta.candidateId ?? resolved?.candidateId;
+        const votes = meta.votes ?? resolved?.votes;
 
         if (status === 'complete' && candidateId && votes != null) {
           const votesCount = Number(votes);
-          const amount = pending?.amount ?? 0;
+          const amount = resolved?.amount ?? 0;
           try {
             await recordVote(candidateId, reference, votesCount, amount);
           } catch (e) {
             console.error('recordVote error:', e);
           }
-          pendingPayments.set(reference, { candidateId, packId: meta.packId ?? pending?.packId, votes: votesCount, status: 'complete' });
+          pendingPayments.set(reference, { candidateId, packId: meta.packId ?? resolved?.packId, votes: votesCount, status: 'complete' });
           try {
             await prisma.payment.updateMany({ where: { reference }, data: { status: 'complete' } });
           } catch (e) {}
@@ -422,14 +455,18 @@ app.get('/api/payments/:reference/status', async (req, res) => {
 
         const failedStatuses = ['failed', 'cancelled', 'canceled', 'timeout', 'expired', 'rejected', 'insufficient_funds', 'declined', 'abandoned', 'refunded', 'partialy-refunded'];
         if (failedStatuses.includes(status)) {
-          if (pending) { pending.status = 'failed'; pendingPayments.set(reference, pending); }
+          pendingPayments.set(reference, { ...resolved, status: 'failed' });
           try {
             await prisma.payment.updateMany({ where: { reference }, data: { status: 'failed' } });
           } catch (e) {}
-          return res.json({ reference, status: 'failed', candidateId: pending?.candidateId ?? null, votes: pending?.votes ?? null });
+          return res.json({ reference, status: 'failed', candidateId: resolved?.candidateId ?? null, votes: resolved?.votes ?? null });
         }
+      } else {
+        console.warn(`[NotchPay] Aucune réponse pour ref=${notchpayRef}`);
       }
-    } catch (_) {}
+    } catch (e) {
+      console.error('[NotchPay status check error]', e);
+    }
   }
 
   if (pending) {
@@ -493,43 +530,65 @@ app.post('/api/webhooks/stripe', async (req, res) => {
 });
 
 // ─────────────────────────────────────────────
-// WEBHOOK NOTCHPAY (inchangé)
+// WEBHOOK NOTCHPAY
 // ─────────────────────────────────────────────
 
 app.post('/api/webhooks/notchpay', async (req, res) => {
   const body = req.body || {};
   const event = body.event || body.type;
   const data = body.data || body.transaction || body;
+  console.log('[NotchPay webhook]', event, JSON.stringify(data).slice(0, 300));
 
   if (event === 'payment.complete' || event === 'charge.complete') {
-    const ref = data?.reference || data?.reference_id;
+    // NotchPay envoie sa propre référence (notchpayRef), pas la référence locale
+    const notchpayRef = data?.reference || data?.reference_id;
     const meta = data?.customer_meta || data?.metadata || {};
-    const candidateId = meta.candidateId;
-    const votesCount = Number(meta.votes || 0);
-    const amount = Number(meta.amount || data?.amount || 0);
-    if (ref && candidateId && votesCount > 0) {
+
+    // Trouver le Payment en DB par notchpayRef OU par référence locale si c'est la même
+    let dbPayment = null;
+    try {
+      dbPayment = await prisma.payment.findFirst({
+        where: { OR: [{ notchpayRef }, { reference: notchpayRef }] },
+      });
+    } catch (e) {}
+
+    const localRef = dbPayment?.reference ?? notchpayRef;
+    const candidateId = meta.candidateId ?? dbPayment?.candidateId;
+    const votesCount = Number(meta.votes ?? dbPayment?.votesCount ?? 0);
+    const amount = Number(meta.amount ?? data?.amount ?? dbPayment?.amount ?? 0);
+
+    console.log(`[NotchPay webhook] complete: localRef=${localRef} notchpayRef=${notchpayRef} candidateId=${candidateId} votes=${votesCount}`);
+
+    if (localRef && candidateId && votesCount > 0) {
       try {
-        await recordVote(candidateId, ref, votesCount, amount);
+        await recordVote(candidateId, localRef, votesCount, amount);
       } catch (e) {
         console.error('recordVote webhook error:', e);
       }
-      pendingPayments.set(ref, { candidateId, packId: meta.packId, votes: votesCount, status: 'complete' });
+      pendingPayments.set(localRef, { candidateId, packId: meta.packId ?? dbPayment?.packId, votes: votesCount, status: 'complete' });
       try {
-        await prisma.payment.updateMany({ where: { reference: ref }, data: { status: 'complete' } });
-      } catch (e) {}
+        await prisma.payment.updateMany({
+          where: { OR: [{ reference: localRef }, { notchpayRef }] },
+          data: { status: 'complete' },
+        });
+      } catch (e) { console.error('DB update webhook error:', e); }
     }
   }
 
   if (event === 'payment.failed' || event === 'charge.failed') {
-    const ref = data?.reference || data?.reference_id;
-    if (ref && pendingPayments.has(ref)) {
-      const p = pendingPayments.get(ref);
-      p.status = 'failed';
-      pendingPayments.set(ref, p);
-    }
+    const notchpayRef = data?.reference || data?.reference_id;
     try {
-      if (ref) await prisma.payment.updateMany({ where: { reference: ref }, data: { status: 'failed' } });
+      await prisma.payment.updateMany({
+        where: { OR: [{ reference: notchpayRef }, { notchpayRef }] },
+        data: { status: 'failed' },
+      });
     } catch (e) {}
+    // Mettre à jour la Map si on a la référence locale
+    if (notchpayRef && pendingPayments.has(notchpayRef)) {
+      const p = pendingPayments.get(notchpayRef);
+      p.status = 'failed';
+      pendingPayments.set(notchpayRef, p);
+    }
   }
 
   res.status(200).send('OK');
