@@ -393,7 +393,7 @@ export function PaymentModal({
                       type="button"
                       onClick={handlePay}
                       disabled={isLoading || !selectedChannel || (needsPhone && !phoneNumber.trim())}
-                      className="flex-[2] h-11 bg-green-600 hover:bg-green-700 text-white"
+                      
                     >
                       {isLoading ? (
                         <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Traitement...</>

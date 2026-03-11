@@ -135,7 +135,7 @@ app.get('/api/notchpay/countries', async (_req, res) => {
     return res.json({ countries: FALLBACK_COUNTRIES });
   }
   try {
-    const r = await fetch(`${NOTCHPAY_API}/resources/countries`, {
+    const r = await fetch(`${NOTCHPAY_API}/countries`, {
       headers: { Authorization: NOTCHPAY_PUBLIC || NOTCHPAY_SECRET },
     });
     const data = await r.json().catch(() => ({}));
@@ -159,7 +159,7 @@ app.get('/api/notchpay/channels', async (req, res) => {
     return res.json({ channels: fallback });
   }
   try {
-    const r = await fetch(`${NOTCHPAY_API}/resources/channels?country=${encodeURIComponent(country)}`, {
+    const r = await fetch(`${NOTCHPAY_API}channels?country=${encodeURIComponent(country)}`, {
       headers: { Authorization: NOTCHPAY_PUBLIC || NOTCHPAY_SECRET },
     });
     const data = await r.json().catch(() => ({}));
