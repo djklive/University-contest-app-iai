@@ -1,17 +1,11 @@
 /**
- * Backend Vote IAI - NotchPay + Stripe + PostgreSQL (Prisma)
+ * Backend Vote IAI - NotchPay + PostgreSQL (Prisma)
  * Hébergement: Railway
  */
 import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
 import { prisma, recordVote } from './db.js';
-import {
-  stripe,
-  createStripePaymentIntent,
-  retrieveStripePaymentIntent,
-  constructStripeWebhookEvent,
-} from './stripe.js';
 
 const NOTCHPAY_API = 'https://api.notchpay.co';
 const app = express();
@@ -30,13 +24,11 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization', 'x-admin-secret'],
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
 }));
-
-// ⚠️ IMPORTANT : le webhook Stripe nécessite le corps RAW (Buffer), AVANT express.json().
-// On enregistre donc express.raw() uniquement pour cette route.
-app.use('/api/webhooks/stripe', express.raw({ type: 'application/json' }));
 app.use(express.json());
 
 const NOTCHPAY_SECRET = process.env.NOTCHPAY_SECRET_KEY;
+// L'API Resources (pays, canaux) attend la clé PUBLIQUE dans Authorization (doc NotchPay)
+const NOTCHPAY_PUBLIC = process.env.NOTCHPAY_PUBLIC_KEY || NOTCHPAY_SECRET;
 const PORT = process.env.PORT || 3000;
 const ADMIN_SECRET = process.env.ADMIN_SECRET;
 
@@ -68,8 +60,19 @@ async function notchpayRetrievePayment(reference) {
   return res.json();
 }
 
-// Map en mémoire pour les paiements en attente (NotchPay + Stripe)
+// Map en mémoire pour les paiements en attente (NotchPay)
 const pendingPayments = new Map();
+
+// Devise par pays (ISO 3166-1 alpha-2)
+const COUNTRY_CURRENCY = {
+  CM: 'XAF', CI: 'XOF', SN: 'XOF', KE: 'KES', UG: 'UGX', GH: 'GHS', NG: 'NGN',
+  GA: 'XAF', TD: 'XAF', CG: 'XAF', CF: 'XAF', GQ: 'XAF',
+};
+
+function getPhoneCodeForCountry(countryCode) {
+  const codes = { CM: '237', CI: '225', SN: '221', KE: '254', UG: '256', GH: '233', NG: '234', GA: '241', TD: '235', CG: '242', CF: '236', GQ: '240' };
+  return codes[countryCode] || '237';
+}
 
 async function getVotePacks() {
   try {
@@ -85,10 +88,101 @@ async function getVotePacks() {
 }
 
 // ─────────────────────────────────────────────
-// ROUTES NOTCHPAY (inchangées)
+// RESSOURCES NOTCHPAY (pays et canaux)
+// Doc : Authorization doit être la clé PUBLIQUE (GET /resources/countries, /resources/channels)
+// Fallback statique si l'API ne répond pas ou renvoie vide
 // ─────────────────────────────────────────────
 
-// Créer un paiement puis lancer le Mobile Money (Option B)
+const FALLBACK_COUNTRIES = [
+  { code: 'CM', name: 'Cameroon', currency: 'XAF', flag: 'https://assets.notchpay.co/flags/cm.png', phone_code: '+237' },
+  { code: 'CI', name: "Côte d'Ivoire", currency: 'XOF', flag: 'https://assets.notchpay.co/flags/ci.png', phone_code: '+225' },
+  { code: 'SN', name: 'Senegal', currency: 'XOF', flag: 'https://assets.notchpay.co/flags/sn.png', phone_code: '+221' },
+  { code: 'GH', name: 'Ghana', currency: 'GHS', flag: 'https://assets.notchpay.co/flags/gh.png', phone_code: '+233' },
+  { code: 'NG', name: 'Nigeria', currency: 'NGN', flag: 'https://assets.notchpay.co/flags/ng.png', phone_code: '+234' },
+  { code: 'KE', name: 'Kenya', currency: 'KES', flag: 'https://assets.notchpay.co/flags/ke.png', phone_code: '+254' },
+  { code: 'UG', name: 'Uganda', currency: 'UGX', flag: 'https://assets.notchpay.co/flags/ug.png', phone_code: '+256' },
+];
+
+const FALLBACK_CHANNELS = {
+  CM: [
+    { id: 'cm.mtn', name: 'MTN Mobile Money', country: 'CM', currency: 'XAF', type: 'mobile_money', logo: 'https://assets.notchpay.co/channels/mtn.png', requires_phone: true },
+    { id: 'cm.orange', name: 'Orange Money', country: 'CM', currency: 'XAF', type: 'mobile_money', logo: 'https://assets.notchpay.co/channels/orange.png', requires_phone: true },
+  ],
+  CI: [
+    { id: 'ci.mtn', name: 'MTN Mobile Money', country: 'CI', currency: 'XOF', type: 'mobile_money', logo: 'https://assets.notchpay.co/channels/mtn.png', requires_phone: true },
+    { id: 'ci.orange', name: 'Orange Money', country: 'CI', currency: 'XOF', type: 'mobile_money', logo: 'https://assets.notchpay.co/channels/orange.png', requires_phone: true },
+  ],
+  SN: [
+    { id: 'sn.wave', name: 'Wave', country: 'SN', currency: 'XOF', type: 'mobile_money', logo: 'https://assets.notchpay.co/channels/wave.png', requires_phone: true },
+    { id: 'sn.orange', name: 'Orange Money', country: 'SN', currency: 'XOF', type: 'mobile_money', logo: 'https://assets.notchpay.co/channels/orange.png', requires_phone: true },
+  ],
+  GH: [
+    { id: 'gh.mtn', name: 'MTN Mobile Money', country: 'GH', currency: 'GHS', type: 'mobile_money', logo: 'https://assets.notchpay.co/channels/mtn.png', requires_phone: true },
+  ],
+  NG: [
+    { id: 'ng.mtn', name: 'MTN Mobile Money', country: 'NG', currency: 'NGN', type: 'mobile_money', logo: 'https://assets.notchpay.co/channels/mtn.png', requires_phone: true },
+  ],
+  KE: [
+    { id: 'ke.mpesa', name: 'M-Pesa', country: 'KE', currency: 'KES', type: 'mobile_money', logo: 'https://assets.notchpay.co/channels/mpesa.png', requires_phone: true },
+  ],
+  UG: [
+    { id: 'ug.airtel', name: 'Airtel Money', country: 'UG', currency: 'UGX', type: 'mobile_money', logo: 'https://assets.notchpay.co/channels/airtel.png', requires_phone: true },
+  ],
+};
+
+app.get('/api/notchpay/countries', async (_req, res) => {
+  if (!NOTCHPAY_PUBLIC && !NOTCHPAY_SECRET) {
+    return res.json({ countries: FALLBACK_COUNTRIES });
+  }
+  try {
+    const r = await fetch(`${NOTCHPAY_API}/resources/countries`, {
+      headers: { Authorization: NOTCHPAY_PUBLIC || NOTCHPAY_SECRET },
+    });
+    const data = await r.json().catch(() => ({}));
+    const countries = data.countries ?? data.data ?? [];
+    const list = Array.isArray(countries) ? countries : [];
+    if (list.length === 0) {
+      console.warn('[NotchPay] /resources/countries vide ou erreur (status=%s). Utilisation du fallback.', r.status);
+      return res.json({ countries: FALLBACK_COUNTRIES });
+    }
+    return res.json({ countries: list });
+  } catch (e) {
+    console.error('NotchPay countries error:', e);
+    return res.json({ countries: FALLBACK_COUNTRIES });
+  }
+});
+
+app.get('/api/notchpay/channels', async (req, res) => {
+  const country = (req.query.country || 'CM').toString().toUpperCase();
+  if (!NOTCHPAY_PUBLIC && !NOTCHPAY_SECRET) {
+    const fallback = FALLBACK_CHANNELS[country] || FALLBACK_CHANNELS.CM;
+    return res.json({ channels: fallback });
+  }
+  try {
+    const r = await fetch(`${NOTCHPAY_API}/resources/channels?country=${encodeURIComponent(country)}`, {
+      headers: { Authorization: NOTCHPAY_PUBLIC || NOTCHPAY_SECRET },
+    });
+    const data = await r.json().catch(() => ({}));
+    const channels = data.channels ?? data.data ?? [];
+    const list = Array.isArray(channels) ? channels : [];
+    if (list.length === 0) {
+      console.warn('[NotchPay] /resources/channels?country=%s vide ou erreur (status=%s). Utilisation du fallback.', country, r.status);
+      const fallback = FALLBACK_CHANNELS[country] || FALLBACK_CHANNELS.CM;
+      return res.json({ channels: fallback });
+    }
+    return res.json({ channels: list });
+  } catch (e) {
+    console.error('NotchPay channels error:', e);
+    const fallback = FALLBACK_CHANNELS[country] || FALLBACK_CHANNELS.CM;
+    return res.json({ channels: fallback });
+  }
+});
+
+// ─────────────────────────────────────────────
+// ROUTES NOTCHPAY (paiement)
+// ─────────────────────────────────────────────
+
+// Créer un paiement puis lancer le canal (Mobile Money, etc.) — multi-pays
 app.post('/api/votes/pay', async (req, res) => {
   if (!NOTCHPAY_SECRET) {
     return res.status(503).json({
@@ -97,13 +191,18 @@ app.post('/api/votes/pay', async (req, res) => {
     });
   }
 
-  const { candidateId, packId, amount, channel, phone, email } = req.body;
-  if (!candidateId || !packId || !amount || !channel || !phone) {
+  const { candidateId, packId, amount, channel, phone, email, country: countryParam } = req.body;
+  if (!candidateId || !packId || !amount || !channel) {
     return res.status(400).json({
       success: false,
-      message: 'Paramètres manquants: candidateId, packId, amount, channel, phone.',
+      message: 'Paramètres manquants: candidateId, packId, amount, channel.',
     });
   }
+  // Pour mobile_money / ussd le numéro est requis
+  const phoneVal = phone ? String(phone).trim() : '';
+
+  const country = (countryParam || 'CM').toString().toUpperCase().slice(0, 2);
+  const currency = COUNTRY_CURRENCY[country] || 'XAF';
 
   const votePacks = await getVotePacks();
   const pack = votePacks.find((p) => p.id === packId);
@@ -120,7 +219,7 @@ app.post('/api/votes/pay', async (req, res) => {
   try {
     const payment = await notchpayCreatePayment({
       amount: Number(amount),
-      currency: 'XAF',
+      currency,
       customer: {
         email: email || 'vote@iai.cm',
         name: 'Votant IAI',
@@ -129,7 +228,7 @@ app.post('/api/votes/pay', async (req, res) => {
       callback: `${APP_URL}/vote/callback?ref=${reference}`,
       description: `Vote IAI - ${pack.votes} vote(s)`,
       locked_channel: channel,
-      locked_country: 'CM',
+      locked_country: country,
       customer_meta: { candidateId, packId, votes: pack.votes },
     });
     if (payment?.transaction?.reference) paymentRef = payment.transaction.reference;
@@ -186,21 +285,22 @@ app.post('/api/votes/pay', async (req, res) => {
   }
 
   try {
-    const phoneNum = String(phone).replace(/\D/g, '');
-    const processUrl = `https://api.notchpay.co/payments/${paymentRef}`;
+    const phoneNum = phoneVal.replace(/\D/g, '');
+    const phoneWithCode = phoneNum.length > 0 && phoneNum.length <= 10
+      ? `${getPhoneCodeForCountry(country)}${phoneNum}`
+      : phoneNum.length > 10 ? phoneNum : null;
+
+    const processPayload = { channel, data: { country } };
+    if (phoneWithCode) processPayload.data.phone = phoneWithCode;
+
+    const processUrl = `${NOTCHPAY_API}/payments/${paymentRef}`;
     const processRes = await fetch(processUrl, {
       method: 'PUT',
       headers: {
         Authorization: NOTCHPAY_SECRET,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
-        channel,
-        data: {
-          phone: phoneNum.startsWith('237') ? phoneNum : `237${phoneNum}`,
-          country: 'CM',
-        },
-      }),
+      body: JSON.stringify(processPayload),
     });
 
     const processData = await processRes.json().catch(() => ({}));
@@ -233,166 +333,13 @@ app.post('/api/votes/pay', async (req, res) => {
   });
 });
 
-// ─────────────────────────────────────────────
-// ROUTES STRIPE (nouvelles)
-// ─────────────────────────────────────────────
-
-/**
- * POST /api/votes/pay-stripe
- * Crée un PaymentIntent Stripe et retourne le clientSecret au frontend.
- * Le frontend complète le paiement avec Stripe.js (Elements).
- *
- * Body: { candidateId, packId, amount, currency?, email? }
- * - currency : "xaf" (défaut) | "eur" | "usd" — selon ce que tu veux proposer
- * - amount   : doit correspondre au prix du pack en XAF (vérification serveur)
- */
-app.post('/api/votes/pay-stripe', async (req, res) => {
-  if (!stripe) {
-    return res.status(503).json({
-      success: false,
-      message: 'Paiement par carte non configuré (STRIPE_SECRET_KEY manquant).',
-    });
-  }
-
-  const { candidateId, packId, amount, currency = 'xaf', email } = req.body;
-  if (!candidateId || !packId || !amount) {
-    return res.status(400).json({
-      success: false,
-      message: 'Paramètres manquants: candidateId, packId, amount.',
-    });
-  }
-
-  const votePacks = await getVotePacks();
-  const pack = votePacks.find((p) => p.id === packId);
-  if (!pack || Number(amount) !== pack.price) {
-    return res.status(400).json({
-      success: false,
-      message: 'Pack ou montant invalide.',
-    });
-  }
-
-  // Référence unique côté serveur (identique au pattern NotchPay pour cohérence)
-  const reference = `stripe_${candidateId}_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
-
-  let paymentIntent;
-  try {
-    paymentIntent = await createStripePaymentIntent(pack.price, currency, {
-      reference,
-      candidateId,
-      packId,
-      votes: String(pack.votes),
-      email: email || '',
-    });
-  } catch (err) {
-    console.error('Stripe create error:', err);
-    return res.status(500).json({
-      success: false,
-      message: err.message || 'Erreur lors de la création du paiement Stripe.',
-    });
-  }
-
-  // Stocker en mémoire + DB
-  pendingPayments.set(reference, {
-    candidateId,
-    packId,
-    votes: pack.votes,
-    amount: pack.price,
-    status: 'pending',
-    provider: 'stripe',
-    stripeIntentId: paymentIntent.id,
-  });
-
-  try {
-    await prisma.payment.upsert({
-      where: { reference },
-      create: {
-        reference,
-        status: 'pending',
-        candidateId,
-        packId,
-        amount: pack.price,
-        votesCount: pack.votes,
-        provider: 'stripe',
-        currency: currency.toUpperCase(),
-        stripeIntentId: paymentIntent.id,
-      },
-      update: {
-        status: 'pending',
-        stripeIntentId: paymentIntent.id,
-        currency: currency.toUpperCase(),
-        provider: 'stripe',
-      },
-    });
-  } catch (dbErr) {
-    console.error('Payment DB create/update (Stripe):', dbErr);
-  }
-
-  return res.json({
-    success: true,
-    reference,
-    // Le frontend en a besoin pour confirmer le paiement avec Stripe.js
-    clientSecret: paymentIntent.client_secret,
-    message: 'PaymentIntent créé. Complétez le paiement côté client.',
-  });
-});
-
 /**
  * GET /api/payments/:reference/status
- * Polling du statut — gère NotchPay ET Stripe.
+ * Polling du statut — NotchPay uniquement.
  */
 app.get('/api/payments/:reference/status', async (req, res) => {
   const { reference } = req.params;
   const pending = pendingPayments.get(reference);
-
-  // ── Stripe ──
-  if (pending?.provider === 'stripe' || reference.startsWith('stripe_')) {
-    const stripeIntentId = pending?.stripeIntentId;
-    if (stripeIntentId && stripe) {
-      try {
-        const intent = await retrieveStripePaymentIntent(stripeIntentId);
-        if (intent) {
-          const status = intent.status; // "succeeded" | "requires_payment_method" | "canceled" | ...
-          const meta = intent.metadata || {};
-          const candidateId = meta.candidateId ?? pending?.candidateId;
-          const votes = meta.votes ?? pending?.votes;
-
-          if (status === 'succeeded' && candidateId && votes != null) {
-            const votesCount = Number(votes);
-            const amount = pending?.amount ?? 0;
-            try {
-              await recordVote(candidateId, reference, votesCount, amount);
-            } catch (e) {
-              console.error('recordVote Stripe error:', e);
-            }
-            pendingPayments.set(reference, { ...pending, status: 'complete' });
-            try {
-              await prisma.payment.updateMany({ where: { reference }, data: { status: 'complete' } });
-            } catch (e) {}
-            return res.json({ reference, status: 'complete', candidateId, votes: votesCount });
-          }
-
-          const failedStatuses = ['requires_payment_method', 'canceled'];
-          if (failedStatuses.includes(status)) {
-            pendingPayments.set(reference, { ...pending, status: 'failed' });
-            try {
-              await prisma.payment.updateMany({ where: { reference }, data: { status: 'failed' } });
-            } catch (e) {}
-            return res.json({ reference, status: 'failed', candidateId: pending?.candidateId ?? null, votes: pending?.votes ?? null });
-          }
-
-          // En cours (processing, requires_action, etc.)
-          return res.json({ reference, status: 'pending', candidateId: pending?.candidateId, votes: pending?.votes });
-        }
-      } catch (e) {
-        console.error('Stripe status check error:', e);
-      }
-    }
-    // Fallback mémoire
-    if (pending) {
-      return res.json({ reference, status: pending.status, candidateId: pending.candidateId, votes: pending.votes });
-    }
-    return res.status(404).json({ reference, status: 'unknown' });
-  }
 
   // ── NotchPay ──
   if (NOTCHPAY_SECRET) {
@@ -473,60 +420,6 @@ app.get('/api/payments/:reference/status', async (req, res) => {
     return res.json({ reference, status: pending.status, candidateId: pending.candidateId, votes: pending.votes });
   }
   return res.status(404).json({ reference, status: 'unknown' });
-});
-
-/**
- * POST /api/webhooks/stripe
- * Webhook Stripe — reçoit les événements de paiement.
- * ⚠️ express.raw() est appliqué sur cette route (voir en haut du fichier).
- * À configurer dans le dashboard Stripe : Developers > Webhooks > Add endpoint
- * URL : https://TON_BACKEND/api/webhooks/stripe
- * Événements à écouter : payment_intent.succeeded, payment_intent.payment_failed
- */
-app.post('/api/webhooks/stripe', async (req, res) => {
-  const sig = req.headers['stripe-signature'];
-  let event;
-
-  try {
-    event = constructStripeWebhookEvent(req.body, sig);
-  } catch (err) {
-    console.error('Stripe webhook signature error:', err.message);
-    return res.status(400).send(`Webhook Error: ${err.message}`);
-  }
-
-  const intent = event.data.object;
-  const meta = intent.metadata || {};
-  const reference = meta.reference;
-
-  if (event.type === 'payment_intent.succeeded') {
-    const candidateId = meta.candidateId;
-    const votesCount = Number(meta.votes || 0);
-    const amount = intent.amount; // en XAF (zero-decimal)
-
-    if (reference && candidateId && votesCount > 0) {
-      try {
-        await recordVote(candidateId, reference, votesCount, amount);
-      } catch (e) {
-        console.error('recordVote Stripe webhook error:', e);
-      }
-      pendingPayments.set(reference, { candidateId, packId: meta.packId, votes: votesCount, status: 'complete', provider: 'stripe' });
-      try {
-        await prisma.payment.updateMany({ where: { reference }, data: { status: 'complete' } });
-      } catch (e) {}
-    }
-  }
-
-  if (event.type === 'payment_intent.payment_failed') {
-    if (reference) {
-      const p = pendingPayments.get(reference);
-      if (p) { p.status = 'failed'; pendingPayments.set(reference, p); }
-      try {
-        await prisma.payment.updateMany({ where: { reference }, data: { status: 'failed' } });
-      } catch (e) {}
-    }
-  }
-
-  res.status(200).send('OK');
 });
 
 // ─────────────────────────────────────────────
