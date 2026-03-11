@@ -139,10 +139,10 @@ app.get('/api/notchpay/countries', async (_req, res) => {
       headers: { Authorization: NOTCHPAY_PUBLIC || NOTCHPAY_SECRET },
     });
     const data = await r.json().catch(() => ({}));
-    const countries = data.countries ?? data.data ?? [];
+    const countries = data.items ?? data.countries ?? data.data ?? [];
     const list = Array.isArray(countries) ? countries : [];
     if (list.length === 0) {
-      console.warn('[NotchPay] /resources/countries vide ou erreur (status=%s). Utilisation du fallback.', r.status);
+      console.warn('[NotchPay] /countries vide ou erreur (status=%s). Utilisation du fallback.', r.status);
       return res.json({ countries: FALLBACK_COUNTRIES });
     }
     return res.json({ countries: list });
@@ -159,14 +159,14 @@ app.get('/api/notchpay/channels', async (req, res) => {
     return res.json({ channels: fallback });
   }
   try {
-    const r = await fetch(`${NOTCHPAY_API}channels?country=${encodeURIComponent(country)}`, {
+    const r = await fetch(`${NOTCHPAY_API}/channels?country=${encodeURIComponent(country)}`, {
       headers: { Authorization: NOTCHPAY_PUBLIC || NOTCHPAY_SECRET },
     });
     const data = await r.json().catch(() => ({}));
-    const channels = data.channels ?? data.data ?? [];
+    const channels = data.items ?? data.channels ?? data.data ?? [];
     const list = Array.isArray(channels) ? channels : [];
     if (list.length === 0) {
-      console.warn('[NotchPay] /resources/channels?country=%s vide ou erreur (status=%s). Utilisation du fallback.', country, r.status);
+      console.warn('[NotchPay] /channels?country=%s vide ou erreur (status=%s). Utilisation du fallback.', country, r.status);
       const fallback = FALLBACK_CHANNELS[country] || FALLBACK_CHANNELS.CM;
       return res.json({ channels: fallback });
     }
