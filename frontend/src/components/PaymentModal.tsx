@@ -127,6 +127,15 @@ export function PaymentModal({
   const isCardOrBank = channelType === 'card' || channelType === 'bank';
   const needsPhone = Boolean(selectedChannel && !isCardOrBank && (isMobileOrUssd || selectedChannel.requires_phone !== false));
 
+  // Icône de secours pour un canal selon son type
+  function channelIcon(ch: NotchPayChannel): string {
+    const t = (ch.type || '').toLowerCase();
+    if (t === 'card' || ch.id?.toLowerCase().includes('card')) return '💳';
+    if (t === 'mobile_money' || t === 'ussd') return '📱';
+    if (t === 'bank') return '🏦';
+    return '💰';
+  }
+
   const handlePay = async () => {
     if (!candidateId || !selectedPack || !selectedChannel) return;
     const phone = phoneNumber.replace(/\D/g, '');
@@ -333,6 +342,12 @@ export function PaymentModal({
                       <Loader2 className="w-5 h-5 animate-spin" />
                       <span>Chargement...</span>
                     </div>
+                  ) : channels.length === 0 ? (
+                    <div className="flex flex-col items-center gap-2 py-6 text-center text-muted-foreground text-sm">
+                      <span className="text-3xl">🌍</span>
+                      <p className="font-medium">Paiement non disponible pour ce pays.</p>
+                      <p className="text-xs">Sélectionnez un pays supporté (ex. Cameroun, Côte d'Ivoire, Sénégal…)</p>
+                    </div>
                   ) : (
                     <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                       {channels.map((ch) => (
@@ -347,10 +362,19 @@ export function PaymentModal({
                           }`}
                         >
                           {ch.logo ? (
-                            <img src={ch.logo} alt="" className="w-8 h-8 object-contain" />
-                          ) : (
-                            <span className="w-8 h-8 flex items-center justify-center bg-gray-100 dark:bg-gray-800 rounded text-lg">💳</span>
-                          )}
+                            <img
+                              src={ch.logo}
+                              alt=""
+                              className="w-8 h-8 object-contain"
+                              onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; (e.currentTarget.nextSibling as HTMLElement).style.display = 'flex'; }}
+                            />
+                          ) : null}
+                          <span
+                            className="w-8 h-8 flex items-center justify-center bg-gray-100 dark:bg-gray-800 rounded text-xl"
+                            style={{ display: ch.logo ? 'none' : 'flex' }}
+                          >
+                            {channelIcon(ch)}
+                          </span>
                           <span className="text-center leading-tight">{ch.name}</span>
                         </button>
                       ))}

@@ -159,7 +159,8 @@ app.get('/api/notchpay/countries', async (_req, res) => {
 app.get('/api/notchpay/channels', async (req, res) => {
   const country = (req.query.country || 'CM').toString().toUpperCase();
   if (!NOTCHPAY_PUBLIC && !NOTCHPAY_SECRET) {
-    const fallback = FALLBACK_CHANNELS[country] || FALLBACK_CHANNELS.CM;
+    // Utilise le fallback du pays, ou vide si pas de fallback (pas de CM par défaut)
+    const fallback = FALLBACK_CHANNELS[country] || [];
     return res.json({ channels: fallback });
   }
   try {
@@ -170,14 +171,15 @@ app.get('/api/notchpay/channels', async (req, res) => {
     const channels = data.items ?? data.channels ?? data.data ?? [];
     const list = Array.isArray(channels) ? channels : [];
     if (list.length === 0) {
-      console.warn('[NotchPay] /channels?country=%s vide ou erreur (status=%s). Utilisation du fallback.', country, r.status);
-      const fallback = FALLBACK_CHANNELS[country] || FALLBACK_CHANNELS.CM;
+      // Pays non supporté par NotchPay → seulement fallback local si défini, sinon vide
+      console.warn('[NotchPay] /channels?country=%s vide ou erreur (status=%s).', country, r.status);
+      const fallback = FALLBACK_CHANNELS[country] || [];
       return res.json({ channels: fallback });
     }
     return res.json({ channels: list });
   } catch (e) {
     console.error('NotchPay channels error:', e);
-    const fallback = FALLBACK_CHANNELS[country] || FALLBACK_CHANNELS.CM;
+    const fallback = FALLBACK_CHANNELS[country] || [];
     return res.json({ channels: fallback });
   }
 });
@@ -219,10 +221,14 @@ app.post('/api/votes/pay', async (req, res) => {
 
   const reference = `vote_${candidateId}_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
 
+  // Détermine si le canal est une carte bancaire (Visa/Mastercard)
+  const isCardChannel = /\.card$/i.test(channel) || channel.toLowerCase().includes('card');
+
   let paymentRef = reference;
   let payment = null;
   try {
-    payment = await notchpayCreatePayment({
+    // Pour carte : pas de locked_channel → NotchPay gère la page Collect automatiquement
+    const paymentBody = {
       amount: Number(amount),
       currency,
       customer: {
@@ -232,10 +238,14 @@ app.post('/api/votes/pay', async (req, res) => {
       reference,
       callback: `${APP_URL}/vote/callback?ref=${reference}`,
       description: `Vote IAI - ${pack.votes} vote(s)`,
-      locked_channel: channel,
-      locked_country: country,
       customer_meta: { candidateId, packId, votes: pack.votes },
-    });
+    };
+    // N'ajouter locked_channel/locked_country que pour les paiements Mobile Money
+    if (!isCardChannel) {
+      paymentBody.locked_channel = channel;
+      paymentBody.locked_country = country;
+    }
+    payment = await notchpayCreatePayment(paymentBody);
     if (payment?.transaction?.reference) paymentRef = payment.transaction.reference;
     else if (payment?.reference) paymentRef = payment.reference;
     if (payment?.code && payment.code >= 400) {
@@ -262,8 +272,7 @@ app.post('/api/votes/pay', async (req, res) => {
     notchpayRef: paymentRef !== reference ? paymentRef : null,
   });
 
-  // Paiement CARTE (Visa/Mastercard) : pas de PUT avec téléphone, on redirige vers la page NotchPay (Collect)
-  const isCardChannel = /\.card$/i.test(channel) || channel.toLowerCase().includes('card');
+  // Paiement CARTE (Visa/Mastercard) : redirection vers la page NotchPay (Collect)
   const authorizationUrl = payment?.authorization_url ?? payment?.transaction?.authorization_url ?? payment?.data?.authorization_url;
   if (isCardChannel && authorizationUrl) {
     try {
