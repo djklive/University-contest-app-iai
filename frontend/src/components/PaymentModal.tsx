@@ -224,7 +224,7 @@ export function PaymentModal({
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto px-6 pb-6">
+        <div className="flex-1 overflow-y-auto px-6 pb-6 overflow-x-visible">
           <AnimatePresence mode="wait">
             {step === 1 && (
               <motion.div
@@ -283,7 +283,7 @@ export function PaymentModal({
                 {/* Votre position — Changer de pays (comme l’interface NotchPay) */}
                 <div className="space-y-2">
                   <p className="text-sm font-medium text-muted-foreground">Votre position</p>
-                  <div className="relative">
+                  <div className="relative z-50">
                     <button
                       type="button"
                       onClick={() => setShowCountryDropdown((v) => !v)}
@@ -301,7 +301,7 @@ export function PaymentModal({
                       <ChevronDown className={`w-4 h-4 transition-transform ${showCountryDropdown ? 'rotate-180' : ''}`} />
                     </button>
                     {showCountryDropdown && (
-                      <div className="absolute top-full left-0 right-0 mt-1 max-h-48 overflow-y-auto rounded-xl border-2 border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 shadow-lg z-10">
+                      <div className="absolute top-full left-0 right-0 mt-1 max-h-48 overflow-y-auto rounded-xl border-2 border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 shadow-xl z-50">
                         {countries.map((c) => (
                           <button
                             key={c.code}

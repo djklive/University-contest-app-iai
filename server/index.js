@@ -220,8 +220,9 @@ app.post('/api/votes/pay', async (req, res) => {
   const reference = `vote_${candidateId}_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
 
   let paymentRef = reference;
+  let payment = null;
   try {
-    const payment = await notchpayCreatePayment({
+    payment = await notchpayCreatePayment({
       amount: Number(amount),
       currency,
       customer: {

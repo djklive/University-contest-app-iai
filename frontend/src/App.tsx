@@ -32,7 +32,10 @@ export default function App() {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const ref = params.get('ref');
-    if (ref && (window.location.pathname.includes('vote') || params.get('from') === 'notchpay')) {
+    const path = window.location.pathname;
+    // Déclenche sur /vote/callback?ref=... (retour NotchPay) ou tout chemin contenant 'callback'
+    const isCallbackUrl = path.includes('callback') || path.includes('vote');
+    if (ref && isCallbackUrl) {
       setPaymentReturnRef(ref);
     }
   }, []);
