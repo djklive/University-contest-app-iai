@@ -39,11 +39,14 @@ if (!process.env.DATABASE_URL) console.warn('DATABASE_URL manquant. API candidat
 // HELPERS NOTCHPAY
 // ─────────────────────────────────────────────
 
+// NotchPay attend la clé PUBLIQUE dans Authorization pour les paiements (création, récupération, process)
+const NOTCHPAY_AUTH = NOTCHPAY_PUBLIC || NOTCHPAY_SECRET;
+
 async function notchpayCreatePayment(body) {
   const res = await fetch(`${NOTCHPAY_API}/payments`, {
     method: 'POST',
     headers: {
-      Authorization: NOTCHPAY_SECRET,
+      Authorization: NOTCHPAY_AUTH,
       'Content-Type': 'application/json',
     },
     body: JSON.stringify(body),
@@ -54,7 +57,7 @@ async function notchpayCreatePayment(body) {
 async function notchpayRetrievePayment(reference) {
   const res = await fetch(`${NOTCHPAY_API}/payments/${encodeURIComponent(reference)}`, {
     method: 'GET',
-    headers: { Authorization: NOTCHPAY_SECRET },
+    headers: { Authorization: NOTCHPAY_AUTH },
   });
   if (!res.ok) return null;
   return res.json();
@@ -107,6 +110,7 @@ const FALLBACK_CHANNELS = {
   CM: [
     { id: 'cm.mtn', name: 'MTN Mobile Money', country: 'CM', currency: 'XAF', type: 'mobile_money', logo: 'https://assets.notchpay.co/channels/mtn.png', requires_phone: true },
     { id: 'cm.orange', name: 'Orange Money', country: 'CM', currency: 'XAF', type: 'mobile_money', logo: 'https://assets.notchpay.co/channels/orange.png', requires_phone: true },
+    { id: 'cm.card', name: 'Carte Visa / Mastercard', country: 'CM', currency: 'XAF', type: 'card', logo: 'https://assets.notchpay.co/channels/card.png', requires_phone: false },
   ],
   CI: [
     { id: 'ci.mtn', name: 'MTN Mobile Money', country: 'CI', currency: 'XOF', type: 'mobile_money', logo: 'https://assets.notchpay.co/channels/mtn.png', requires_phone: true },
@@ -184,7 +188,7 @@ app.get('/api/notchpay/channels', async (req, res) => {
 
 // Créer un paiement puis lancer le canal (Mobile Money, etc.) — multi-pays
 app.post('/api/votes/pay', async (req, res) => {
-  if (!NOTCHPAY_SECRET) {
+  if (!NOTCHPAY_AUTH) {
     return res.status(503).json({
       success: false,
       message: 'Paiement non configuré (clé API manquante).',
@@ -257,6 +261,39 @@ app.post('/api/votes/pay', async (req, res) => {
     notchpayRef: paymentRef !== reference ? paymentRef : null,
   });
 
+  // Paiement CARTE (Visa/Mastercard) : pas de PUT avec téléphone, on redirige vers la page NotchPay (Collect)
+  const isCardChannel = /\.card$/i.test(channel) || channel.toLowerCase().includes('card');
+  const authorizationUrl = payment?.authorization_url ?? payment?.transaction?.authorization_url ?? payment?.data?.authorization_url;
+  if (isCardChannel && authorizationUrl) {
+    try {
+      await prisma.payment.upsert({
+        where: { reference },
+        create: {
+          reference,
+          status: 'pending',
+          candidateId,
+          packId,
+          amount: pack.price,
+          votesCount: pack.votes,
+          provider: 'notchpay',
+          notchpayRef: paymentRef !== reference ? paymentRef : null,
+        },
+        update: {
+          status: 'pending',
+          notchpayRef: paymentRef !== reference ? paymentRef : null,
+        },
+      });
+    } catch (dbErr) {
+      console.error('Payment DB create/update (card):', dbErr);
+    }
+    return res.json({
+      success: true,
+      reference,
+      authorization_url: authorizationUrl,
+      message: 'Redirection vers la page de paiement sécurisée (carte bancaire).',
+    });
+  }
+
   try {
     await prisma.payment.upsert({
       where: { reference },
@@ -297,7 +334,7 @@ app.post('/api/votes/pay', async (req, res) => {
     const processRes = await fetch(processUrl, {
       method: 'PUT',
       headers: {
-        Authorization: NOTCHPAY_SECRET,
+        Authorization: NOTCHPAY_AUTH,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify(processPayload),

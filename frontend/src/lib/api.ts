@@ -43,6 +43,8 @@ export interface PayVoteResponse {
   success: boolean;
   reference?: string;
   message?: string;
+  /** Redirection vers la page NotchPay (paiement carte). Présent uniquement pour les canaux type "card". */
+  authorization_url?: string;
 }
 
 export interface PaymentStatusResponse {

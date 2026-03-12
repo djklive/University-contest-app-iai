@@ -121,7 +121,11 @@ export function PaymentModal({
 
   const selectedPack = votePacks.find((p) => p.id === selectedPackId);
   const currencyLabel = selectedCountry?.currency ? CURRENCY_LABELS[selectedCountry.currency] || selectedCountry.currency : 'FCFA';
-  const needsPhone = selectedChannel?.requires_phone !== false && ['mobile_money', 'ussd'].includes(selectedChannel?.type || '');
+  // Afficher le champ téléphone pour Mobile Money / USSD, ou si le canal ne dit pas explicitement le contraire (ex. API sans type)
+  const channelType = (selectedChannel?.type || '').toLowerCase();
+  const isMobileOrUssd = channelType === 'mobile_money' || channelType === 'ussd';
+  const isCardOrBank = channelType === 'card' || channelType === 'bank';
+  const needsPhone = Boolean(selectedChannel && !isCardOrBank && (isMobileOrUssd || selectedChannel.requires_phone !== false));
 
   const handlePay = async () => {
     if (!candidateId || !selectedPack || !selectedChannel) return;
@@ -149,6 +153,12 @@ export function PaymentModal({
     if (!data.success || !data.reference) {
       setError(data.message || 'Erreur lors du paiement.');
       setIsLoading(false);
+      return;
+    }
+
+    // Paiement carte : redirection vers la page sécurisée NotchPay (Collect)
+    if (data.authorization_url) {
+      window.location.href = data.authorization_url;
       return;
     }
 
@@ -350,21 +360,29 @@ export function PaymentModal({
 
                 {/* Numéro de téléphone (si canal mobile_money / ussd) */}
                 {selectedChannel && needsPhone && (
-                  <div className="space-y-1.5">
+                  <div className="flex flex-col gap-4">
                     <Label htmlFor="phone">Numéro de téléphone</Label>
-                    <div className="relative flex items-center">
-                      <span className="absolute left-3 text-muted-foreground text-sm">{selectedCountry?.phone_code || '+237'}</span>
+                    <div className="flex items-center h-11 rounded-lg border border-input bg-background overflow-hidden focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-0">
+                      
+                      {/* Icône + indicatif pays */}
+                      <div className="flex items-center gap-1.5 px-3 border-r border-input bg-muted/40 h-full shrink-0">
+                        <Smartphone className="w-4 h-4 text-muted-foreground" />
+                        <span className="text-sm font-medium text-muted-foreground">
+                          {selectedCountry?.phone_code || '+237'}
+                        </span>
+                      </div>
+
+                      {/* Champ numéro */}
                       <Input
                         id="phone"
                         placeholder="6 71 23 45 67"
-                        className="pl-14 h-11"
+                        className="border-0 shadow-none focus-visible:ring-0 h-full pl-3 bg-transparent"
                         value={phoneNumber}
                         onChange={(e) => {
                           setPhoneNumber(e.target.value.replace(/\D/g, '').slice(0, 12));
                           setError(null);
                         }}
                       />
-                      <Smartphone className="absolute right-3 w-4 h-4 text-muted-foreground" />
                     </div>
                   </div>
                 )}

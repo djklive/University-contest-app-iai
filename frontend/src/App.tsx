@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { BarChart3, Users, Heart } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { BarChart3, Users, Heart, Check, Loader2 } from 'lucide-react';
 import { Header } from './components/Header';
 import { useFavorites } from './hooks/useFavorites';
 import { Dashboard } from './components/Dashboard';
@@ -8,7 +8,7 @@ import { CandidateProfile } from './components/CandidateProfile';
 import { PaymentModal } from './components/PaymentModal';
 import { Toaster } from './components/ui/sonner';
 import { AnimatePresence, motion } from 'framer-motion';
-import { getCandidates, getVotePacks, getStats, type Candidate, type VotePack, type Stats } from './lib/api';
+import { getCandidates, getVotePacks, getStats, getPaymentStatus, type Candidate, type VotePack, type Stats } from './lib/api';
 
 type View = 'dashboard' | 'gallery' | 'profile' | 'favorites' | 'profile-user';
 
@@ -23,7 +23,42 @@ export default function App() {
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
   const [votingCandidateId, setVotingCandidateId] = useState<string | null>(null);
   const [isDarkMode, setIsDarkMode] = useState(false);
+  const [paymentReturnRef, setPaymentReturnRef] = useState<string | null>(null);
+  const [paymentReturnStatus, setPaymentReturnStatus] = useState<'checking' | 'complete' | 'failed'>('checking');
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const { favorites, toggleFavorite } = useFavorites();
+
+  // Détection du retour depuis NotchPay (paiement carte) : URL /vote/callback?ref=xxx
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const ref = params.get('ref');
+    if (ref && (window.location.pathname.includes('vote') || params.get('from') === 'notchpay')) {
+      setPaymentReturnRef(ref);
+    }
+  }, []);
+
+  // Polling du statut quand on est sur la page de retour paiement
+  useEffect(() => {
+    if (!paymentReturnRef) return;
+    const check = async () => {
+      const status = await getPaymentStatus(paymentReturnRef);
+      if (!status) return;
+      if (status.status === 'complete') {
+        if (pollRef.current) clearInterval(pollRef.current);
+        setPaymentReturnStatus('complete');
+        fetchData();
+      }
+      if (status.status === 'failed') {
+        if (pollRef.current) clearInterval(pollRef.current);
+        setPaymentReturnStatus('failed');
+      }
+    };
+    check();
+    pollRef.current = setInterval(check, 2500);
+    return () => {
+      if (pollRef.current) clearInterval(pollRef.current);
+    };
+  }, [paymentReturnRef]);
 
   const fetchData = async () => {
     setLoading(true);
@@ -71,6 +106,13 @@ export default function App() {
     document.documentElement.classList.toggle('dark');
   };
 
+  const clearPaymentReturn = () => {
+    setPaymentReturnRef(null);
+    setPaymentReturnStatus('checking');
+    window.history.replaceState({}, '', window.location.pathname.replace(/\/vote\/callback.*$/, '') || '/');
+    setCurrentView('gallery');
+  };
+
   const pageVariants = {
     initial: { opacity: 0, y: 20 },
     animate: { opacity: 1, y: 0 },
@@ -79,8 +121,49 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-amber-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
+      {/* Écran de retour après paiement carte (NotchPay Collect) */}
+      {paymentReturnRef && (
+        <div className="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-white dark:bg-gray-900 p-6">
+          {paymentReturnStatus === 'checking' && (
+            <>
+              <Loader2 className="w-12 h-12 animate-spin text-[#1e40af] mb-4" />
+              <p className="text-lg font-medium">Vérification du paiement...</p>
+              <p className="text-sm text-muted-foreground mt-2">Merci de patienter.</p>
+            </>
+          )}
+          {paymentReturnStatus === 'complete' && (
+            <>
+              <div className="w-16 h-16 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center mb-4">
+                <Check className="w-8 h-8 text-green-600" />
+              </div>
+              <p className="text-lg font-medium">Paiement réussi !</p>
+              <p className="text-sm text-muted-foreground mt-2">Votre vote a bien été enregistré.</p>
+              <button
+                type="button"
+                onClick={clearPaymentReturn}
+                className="mt-6 px-6 py-3 rounded-xl bg-[#1e40af] text-white font-medium hover:bg-[#1e3a8a]"
+              >
+                Voir les candidats
+              </button>
+            </>
+          )}
+          {paymentReturnStatus === 'failed' && (
+            <>
+              <p className="text-lg font-medium text-red-600">Paiement échoué ou annulé.</p>
+              <button
+                type="button"
+                onClick={clearPaymentReturn}
+                className="mt-6 px-6 py-3 rounded-xl bg-gray-200 dark:bg-gray-700 font-medium"
+              >
+                Retour
+              </button>
+            </>
+          )}
+        </div>
+      )}
+
       {/* Header masqué sur le profil pour éviter IAI Campus derrière les boutons retour/partage */}
-      {currentView !== 'profile' && (
+      {currentView !== 'profile' && !paymentReturnRef && (
         <Header
           isDarkMode={isDarkMode}
           onToggleDarkMode={toggleDarkMode}
@@ -183,7 +266,7 @@ export default function App() {
       </div>
 
       {/* Bottom Navigation */}
-      {currentView !== 'profile' && (
+      {currentView !== 'profile' && !paymentReturnRef && (
         <div className="fixed bottom-0 left-0 right-0 bg-white/80 dark:bg-gray-900/80 backdrop-blur-md border-t dark:border-gray-800 nav-safe-area z-40">
           <div className="max-w-md mx-auto flex justify-between p-2">
             <button
