@@ -123,7 +123,7 @@ export function PaymentModal({
   const currencyLabel = selectedCountry?.currency ? CURRENCY_LABELS[selectedCountry.currency] || selectedCountry.currency : 'FCFA';
   // Afficher le champ téléphone pour Mobile Money / USSD, ou si le canal ne dit pas explicitement le contraire (ex. API sans type)
   const channelType = (selectedChannel?.type || '').toLowerCase();
-  const isMobileOrUssd = channelType === 'mobile_money' || channelType === 'ussd';
+  const isMobileOrUssd = channelType === 'mobile' || channelType === 'ussd';
   const isCardOrBank = channelType === 'card' || channelType === 'bank';
   const needsPhone = Boolean(selectedChannel && !isCardOrBank && (isMobileOrUssd || selectedChannel.requires_phone !== false));
 
@@ -131,7 +131,7 @@ export function PaymentModal({
   function channelIcon(ch: NotchPayChannel): string {
     const t = (ch.type || '').toLowerCase();
     if (t === 'card' || ch.id?.toLowerCase().includes('card')) return '💳';
-    if (t === 'mobile_money' || t === 'ussd') return '📱';
+    if (t === 'mobile' || t === 'ussd') return '📱';
     if (t === 'bank') return '🏦';
     return '💰';
   }
