@@ -45,6 +45,9 @@ export type PaymentMinAggregateOutputType = {
   amount: number | null
   votesCount: number | null
   notchpayRef: string | null
+  provider: string | null
+  stripeIntentId: string | null
+  currency: string | null
   createdAt: Date | null
   updatedAt: Date | null
 }
@@ -58,6 +61,9 @@ export type PaymentMaxAggregateOutputType = {
   amount: number | null
   votesCount: number | null
   notchpayRef: string | null
+  provider: string | null
+  stripeIntentId: string | null
+  currency: string | null
   createdAt: Date | null
   updatedAt: Date | null
 }
@@ -71,6 +77,9 @@ export type PaymentCountAggregateOutputType = {
   amount: number
   votesCount: number
   notchpayRef: number
+  provider: number
+  stripeIntentId: number
+  currency: number
   createdAt: number
   updatedAt: number
   _all: number
@@ -96,6 +105,9 @@ export type PaymentMinAggregateInputType = {
   amount?: true
   votesCount?: true
   notchpayRef?: true
+  provider?: true
+  stripeIntentId?: true
+  currency?: true
   createdAt?: true
   updatedAt?: true
 }
@@ -109,6 +121,9 @@ export type PaymentMaxAggregateInputType = {
   amount?: true
   votesCount?: true
   notchpayRef?: true
+  provider?: true
+  stripeIntentId?: true
+  currency?: true
   createdAt?: true
   updatedAt?: true
 }
@@ -122,6 +137,9 @@ export type PaymentCountAggregateInputType = {
   amount?: true
   votesCount?: true
   notchpayRef?: true
+  provider?: true
+  stripeIntentId?: true
+  currency?: true
   createdAt?: true
   updatedAt?: true
   _all?: true
@@ -222,6 +240,9 @@ export type PaymentGroupByOutputType = {
   amount: number
   votesCount: number
   notchpayRef: string | null
+  provider: string
+  stripeIntentId: string | null
+  currency: string
   createdAt: Date
   updatedAt: Date
   _count: PaymentCountAggregateOutputType | null
@@ -258,6 +279,9 @@ export type PaymentWhereInput = {
   amount?: Prisma.IntFilter<"Payment"> | number
   votesCount?: Prisma.IntFilter<"Payment"> | number
   notchpayRef?: Prisma.StringNullableFilter<"Payment"> | string | null
+  provider?: Prisma.StringFilter<"Payment"> | string
+  stripeIntentId?: Prisma.StringNullableFilter<"Payment"> | string | null
+  currency?: Prisma.StringFilter<"Payment"> | string
   createdAt?: Prisma.DateTimeFilter<"Payment"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"Payment"> | Date | string
 }
@@ -271,6 +295,9 @@ export type PaymentOrderByWithRelationInput = {
   amount?: Prisma.SortOrder
   votesCount?: Prisma.SortOrder
   notchpayRef?: Prisma.SortOrderInput | Prisma.SortOrder
+  provider?: Prisma.SortOrder
+  stripeIntentId?: Prisma.SortOrderInput | Prisma.SortOrder
+  currency?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
 }
@@ -287,6 +314,9 @@ export type PaymentWhereUniqueInput = Prisma.AtLeast<{
   amount?: Prisma.IntFilter<"Payment"> | number
   votesCount?: Prisma.IntFilter<"Payment"> | number
   notchpayRef?: Prisma.StringNullableFilter<"Payment"> | string | null
+  provider?: Prisma.StringFilter<"Payment"> | string
+  stripeIntentId?: Prisma.StringNullableFilter<"Payment"> | string | null
+  currency?: Prisma.StringFilter<"Payment"> | string
   createdAt?: Prisma.DateTimeFilter<"Payment"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"Payment"> | Date | string
 }, "id" | "reference">
@@ -300,6 +330,9 @@ export type PaymentOrderByWithAggregationInput = {
   amount?: Prisma.SortOrder
   votesCount?: Prisma.SortOrder
   notchpayRef?: Prisma.SortOrderInput | Prisma.SortOrder
+  provider?: Prisma.SortOrder
+  stripeIntentId?: Prisma.SortOrderInput | Prisma.SortOrder
+  currency?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
   _count?: Prisma.PaymentCountOrderByAggregateInput
@@ -321,6 +354,9 @@ export type PaymentScalarWhereWithAggregatesInput = {
   amount?: Prisma.IntWithAggregatesFilter<"Payment"> | number
   votesCount?: Prisma.IntWithAggregatesFilter<"Payment"> | number
   notchpayRef?: Prisma.StringNullableWithAggregatesFilter<"Payment"> | string | null
+  provider?: Prisma.StringWithAggregatesFilter<"Payment"> | string
+  stripeIntentId?: Prisma.StringNullableWithAggregatesFilter<"Payment"> | string | null
+  currency?: Prisma.StringWithAggregatesFilter<"Payment"> | string
   createdAt?: Prisma.DateTimeWithAggregatesFilter<"Payment"> | Date | string
   updatedAt?: Prisma.DateTimeWithAggregatesFilter<"Payment"> | Date | string
 }
@@ -334,6 +370,9 @@ export type PaymentCreateInput = {
   amount: number
   votesCount: number
   notchpayRef?: string | null
+  provider?: string
+  stripeIntentId?: string | null
+  currency?: string
   createdAt?: Date | string
   updatedAt?: Date | string
 }
@@ -347,6 +386,9 @@ export type PaymentUncheckedCreateInput = {
   amount: number
   votesCount: number
   notchpayRef?: string | null
+  provider?: string
+  stripeIntentId?: string | null
+  currency?: string
   createdAt?: Date | string
   updatedAt?: Date | string
 }
@@ -360,6 +402,9 @@ export type PaymentUpdateInput = {
   amount?: Prisma.IntFieldUpdateOperationsInput | number
   votesCount?: Prisma.IntFieldUpdateOperationsInput | number
   notchpayRef?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  provider?: Prisma.StringFieldUpdateOperationsInput | string
+  stripeIntentId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  currency?: Prisma.StringFieldUpdateOperationsInput | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -373,6 +418,9 @@ export type PaymentUncheckedUpdateInput = {
   amount?: Prisma.IntFieldUpdateOperationsInput | number
   votesCount?: Prisma.IntFieldUpdateOperationsInput | number
   notchpayRef?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  provider?: Prisma.StringFieldUpdateOperationsInput | string
+  stripeIntentId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  currency?: Prisma.StringFieldUpdateOperationsInput | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -386,6 +434,9 @@ export type PaymentCreateManyInput = {
   amount: number
   votesCount: number
   notchpayRef?: string | null
+  provider?: string
+  stripeIntentId?: string | null
+  currency?: string
   createdAt?: Date | string
   updatedAt?: Date | string
 }
@@ -399,6 +450,9 @@ export type PaymentUpdateManyMutationInput = {
   amount?: Prisma.IntFieldUpdateOperationsInput | number
   votesCount?: Prisma.IntFieldUpdateOperationsInput | number
   notchpayRef?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  provider?: Prisma.StringFieldUpdateOperationsInput | string
+  stripeIntentId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  currency?: Prisma.StringFieldUpdateOperationsInput | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -412,6 +466,9 @@ export type PaymentUncheckedUpdateManyInput = {
   amount?: Prisma.IntFieldUpdateOperationsInput | number
   votesCount?: Prisma.IntFieldUpdateOperationsInput | number
   notchpayRef?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  provider?: Prisma.StringFieldUpdateOperationsInput | string
+  stripeIntentId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  currency?: Prisma.StringFieldUpdateOperationsInput | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -425,6 +482,9 @@ export type PaymentCountOrderByAggregateInput = {
   amount?: Prisma.SortOrder
   votesCount?: Prisma.SortOrder
   notchpayRef?: Prisma.SortOrder
+  provider?: Prisma.SortOrder
+  stripeIntentId?: Prisma.SortOrder
+  currency?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
 }
@@ -443,6 +503,9 @@ export type PaymentMaxOrderByAggregateInput = {
   amount?: Prisma.SortOrder
   votesCount?: Prisma.SortOrder
   notchpayRef?: Prisma.SortOrder
+  provider?: Prisma.SortOrder
+  stripeIntentId?: Prisma.SortOrder
+  currency?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
 }
@@ -456,6 +519,9 @@ export type PaymentMinOrderByAggregateInput = {
   amount?: Prisma.SortOrder
   votesCount?: Prisma.SortOrder
   notchpayRef?: Prisma.SortOrder
+  provider?: Prisma.SortOrder
+  stripeIntentId?: Prisma.SortOrder
+  currency?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
 }
@@ -476,6 +542,9 @@ export type PaymentSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs 
   amount?: boolean
   votesCount?: boolean
   notchpayRef?: boolean
+  provider?: boolean
+  stripeIntentId?: boolean
+  currency?: boolean
   createdAt?: boolean
   updatedAt?: boolean
 }, ExtArgs["result"]["payment"]>
@@ -489,6 +558,9 @@ export type PaymentSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Exten
   amount?: boolean
   votesCount?: boolean
   notchpayRef?: boolean
+  provider?: boolean
+  stripeIntentId?: boolean
+  currency?: boolean
   createdAt?: boolean
   updatedAt?: boolean
 }, ExtArgs["result"]["payment"]>
@@ -502,6 +574,9 @@ export type PaymentSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Exten
   amount?: boolean
   votesCount?: boolean
   notchpayRef?: boolean
+  provider?: boolean
+  stripeIntentId?: boolean
+  currency?: boolean
   createdAt?: boolean
   updatedAt?: boolean
 }, ExtArgs["result"]["payment"]>
@@ -515,11 +590,14 @@ export type PaymentSelectScalar = {
   amount?: boolean
   votesCount?: boolean
   notchpayRef?: boolean
+  provider?: boolean
+  stripeIntentId?: boolean
+  currency?: boolean
   createdAt?: boolean
   updatedAt?: boolean
 }
 
-export type PaymentOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "reference" | "status" | "candidateId" | "packId" | "amount" | "votesCount" | "notchpayRef" | "createdAt" | "updatedAt", ExtArgs["result"]["payment"]>
+export type PaymentOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "reference" | "status" | "candidateId" | "packId" | "amount" | "votesCount" | "notchpayRef" | "provider" | "stripeIntentId" | "currency" | "createdAt" | "updatedAt", ExtArgs["result"]["payment"]>
 
 export type $PaymentPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   name: "Payment"
@@ -533,6 +611,9 @@ export type $PaymentPayload<ExtArgs extends runtime.Types.Extensions.InternalArg
     amount: number
     votesCount: number
     notchpayRef: string | null
+    provider: string
+    stripeIntentId: string | null
+    currency: string
     createdAt: Date
     updatedAt: Date
   }, ExtArgs["result"]["payment"]>
@@ -966,6 +1047,9 @@ export interface PaymentFieldRefs {
   readonly amount: Prisma.FieldRef<"Payment", 'Int'>
   readonly votesCount: Prisma.FieldRef<"Payment", 'Int'>
   readonly notchpayRef: Prisma.FieldRef<"Payment", 'String'>
+  readonly provider: Prisma.FieldRef<"Payment", 'String'>
+  readonly stripeIntentId: Prisma.FieldRef<"Payment", 'String'>
+  readonly currency: Prisma.FieldRef<"Payment", 'String'>
   readonly createdAt: Prisma.FieldRef<"Payment", 'DateTime'>
   readonly updatedAt: Prisma.FieldRef<"Payment", 'DateTime'>
 }

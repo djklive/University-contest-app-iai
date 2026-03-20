@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Smartphone, Check, AlertCircle, Loader2, ChevronDown } from 'lucide-react';
+import { Smartphone, Check, AlertCircle, Loader2, ChevronDown, Lock } from 'lucide-react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
@@ -16,12 +16,206 @@ import { ConfettiAnimation } from './ConfettiAnimation';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
   payVote,
+  payStripe,
   getPaymentStatus,
   getNotchPayCountries,
   getNotchPayChannels,
   type NotchPayCountry,
   type NotchPayChannel,
 } from '../lib/api';
+
+// Stripe
+import { loadStripe } from '@stripe/stripe-js';
+import {
+  Elements,
+  CardNumberElement,
+  CardExpiryElement,
+  CardCvcElement,
+  useStripe,
+  useElements,
+} from '@stripe/react-stripe-js';
+
+const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLIC_KEY || '');
+
+const STRIPE_ELEMENT_STYLE = {
+  base: {
+    fontSize: '16px',
+    color: '#1a1a2e',
+    fontFamily: 'ui-sans-serif, system-ui, sans-serif',
+    '::placeholder': { color: '#a0a0b0' },
+    iconColor: '#1e40af',
+  },
+  invalid: { color: '#d4183d', iconColor: '#d4183d' },
+};
+
+interface StripeCardFormProps {
+  clientSecret: string;
+  reference: string;
+  selectedPack: VotePack | undefined;
+  onSuccess: () => void;
+  onError: (msg: string) => void;
+}
+
+function StripeCardForm({ clientSecret, reference: _reference, selectedPack, onSuccess, onError }: StripeCardFormProps) {
+  const stripe = useStripe();
+  const elements = useElements();
+  const [isConfirming, setIsConfirming] = useState(false);
+  const [cardholderName, setCardholderName] = useState('');
+  const [fieldErrors, setFieldErrors] = useState<{ number?: string; expiry?: string; cvc?: string }>({});
+
+  const handleConfirm = async () => {
+    if (!stripe || !elements) return;
+    if (!cardholderName.trim()) {
+      onError('Veuillez saisir le nom du titulaire de la carte.');
+      return;
+    }
+
+    setIsConfirming(true);
+
+    const cardNumber = elements.getElement(CardNumberElement);
+    if (!cardNumber) {
+      onError('Élément carte introuvable.');
+      setIsConfirming(false);
+      return;
+    }
+
+    const { error, paymentIntent } = await stripe.confirmCardPayment(clientSecret, {
+      payment_method: {
+        card: cardNumber,
+        billing_details: { name: cardholderName.trim() },
+      },
+    });
+
+    if (error) {
+      onError(error.message || 'Paiement refusé. Vérifiez vos informations.');
+      setIsConfirming(false);
+      return;
+    }
+
+    if (paymentIntent?.status === 'succeeded') {
+      onSuccess();
+    } else {
+      onError('Statut inattendu. Contactez le support.');
+      setIsConfirming(false);
+    }
+  };
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="flex flex-col gap-4"
+    >
+      {/* Résumé montant */}
+      <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/30 dark:to-indigo-950/20 border border-blue-100 dark:border-blue-900 rounded-xl p-4 flex justify-between items-center">
+        <div>
+          <p className="text-xs text-muted-foreground mb-0.5">Pack sélectionné</p>
+          <p className="font-bold">{selectedPack?.votes} vote{(selectedPack?.votes ?? 0) > 1 ? 's' : ''}</p>
+        </div>
+        <div className="text-right">
+          <p className="text-xs text-muted-foreground mb-0.5">Total</p>
+          <p className="font-bold text-[#1e40af] text-xl">{selectedPack?.price} FCFA</p>
+        </div>
+      </div>
+
+      {/* Badge sécurité */}
+      <div className="flex items-center gap-2 text-xs text-muted-foreground bg-gray-50 dark:bg-gray-800/50 rounded-lg px-3 py-2 mb-2">
+        <Lock className="w-3 h-3 text-green-600 flex-shrink-0" />
+        <span>Paiement sécurisé par <span className="font-semibold text-[#635bff]">Stripe</span> — vos données ne sont jamais stockées</span>
+      </div>
+
+      {/* Nom du titulaire */}
+      <div className="flex flex-col gap-2">
+        <Label htmlFor="cardholder">Nom du titulaire</Label>
+        <Input
+          id="cardholder"
+          placeholder="JEAN DUPONT"
+          className="h-11 uppercase tracking-wider"
+          value={cardholderName}
+          onChange={(e) => setCardholderName(e.target.value.toUpperCase())}
+        />
+      </div>
+
+      {/* Numéro de carte */}
+      <div className="flex flex-col gap-2">
+        <Label>Numéro de carte</Label>
+        <div className="relative">
+          <div className="border rounded-md bg-input-background dark:bg-input/30 px-3 py-3 focus-within:border-ring focus-within:ring-ring/50 focus-within:ring-[3px] transition-all">
+            <CardNumberElement
+              options={{ style: STRIPE_ELEMENT_STYLE, showIcon: true }}
+              onChange={(e) => setFieldErrors((prev) => ({ ...prev, number: e.error?.message }))}
+            />
+          </div>
+          {fieldErrors.number && (
+            <p className="text-xs text-red-500 mt-1 flex items-center gap-1">
+              <AlertCircle className="w-3 h-3" /> {fieldErrors.number}
+            </p>
+          )}
+        </div>
+      </div>
+
+      {/* Expiration + CVC */}
+      <div className="grid grid-cols-2 gap-3">
+        <div className="flex flex-col gap-2">
+          <Label>Date d'expiration</Label>
+          <div className="border rounded-md bg-input-background dark:bg-input/30 px-3 py-3 focus-within:border-ring focus-within:ring-ring/50 focus-within:ring-[3px] transition-all">
+            <CardExpiryElement
+              options={{ style: STRIPE_ELEMENT_STYLE }}
+              onChange={(e) => setFieldErrors((prev) => ({ ...prev, expiry: e.error?.message }))}
+            />
+          </div>
+          {fieldErrors.expiry && (
+            <p className="text-xs text-red-500 mt-1">{fieldErrors.expiry}</p>
+          )}
+        </div>
+        <div className="flex flex-col gap-2">
+          <Label>CVC</Label>
+          <div className="border rounded-md bg-input-background dark:bg-input/30 px-3 py-3 focus-within:border-ring focus-within:ring-ring/50 focus-within:ring-[3px] transition-all">
+            <CardCvcElement
+              options={{ style: STRIPE_ELEMENT_STYLE }}
+              onChange={(e) => setFieldErrors((prev) => ({ ...prev, cvc: e.error?.message }))}
+            />
+          </div>
+          {fieldErrors.cvc && (
+            <p className="text-xs text-red-500 mt-1">{fieldErrors.cvc}</p>
+          )}
+        </div>
+      </div>
+
+      {/* Logos cartes acceptées */}
+      <div className="flex items-center gap-2 flex-wrap">
+        <span className="text-xs text-muted-foreground">Cartes acceptées :</span>
+        {['VISA', 'MC', 'AMEX'].map((card) => (
+          <span
+            key={card}
+            className="text-[10px] font-bold px-2 py-0.5 rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 tracking-wider"
+          >
+            {card}
+          </span>
+        ))}
+      </div>
+
+      {/* Bouton confirmer */}
+      <Button
+        onClick={handleConfirm}
+        disabled={isConfirming || !stripe}
+        className="w-full h-13 mb-4 text-base font-semibold bg-gradient-to-r from-[#635bff] to-[#4f46e5] hover:from-[#4f46e5] hover:to-[#3730a3] text-white rounded-xl shadow-lg disabled:opacity-60"
+      >
+        {isConfirming ? (
+          <>
+            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+            Confirmation en cours...
+          </>
+        ) : (
+          <>
+            <Lock className="w-4 h-4 mr-2" />
+            Payer {selectedPack?.price} FCFA
+          </>
+        )}
+      </Button>
+    </motion.div>
+  );
+}
 
 // ─── Props du modal principal ──────────────────────────────────────────────────
 interface PaymentModalProps {
@@ -63,6 +257,7 @@ export function PaymentModal({
   const [error, setError] = useState<string | null>(null);
   const [showConfetti, setShowConfetti] = useState(false);
   const [mobileReference, setMobileReference] = useState<string | null>(null);
+  const [stripeClientSecret, setStripeClientSecret] = useState<string | null>(null);
 
   const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -111,6 +306,7 @@ export function PaymentModal({
       setShowConfetti(false);
       setIsLoading(false);
       setMobileReference(null);
+      setStripeClientSecret(null);
       setShowCountryDropdown(false);
       if (pollIntervalRef.current) {
         clearInterval(pollIntervalRef.current);
@@ -130,6 +326,7 @@ export function PaymentModal({
   // Icône de secours pour un canal selon son type
   function channelIcon(ch: NotchPayChannel): string {
     const t = (ch.type || '').toLowerCase();
+    if (t === 'stripe') return '💳';
     if (t === 'card' || ch.id?.toLowerCase().includes('card')) return '💳';
     if (t === 'mobile' || t === 'ussd') return '📱';
     if (t === 'bank') return '🏦';
@@ -138,6 +335,30 @@ export function PaymentModal({
 
   const handlePay = async () => {
     if (!candidateId || !selectedPack || !selectedChannel) return;
+
+    if (selectedChannel.id === 'stripe_card') {
+      setError(null);
+      setIsLoading(true);
+
+      const data = await payStripe({
+        candidateId,
+        packId: selectedPackId,
+        amount: selectedPack.price,
+        currency: 'xaf',
+      });
+
+      if (!data.success || !data.clientSecret) {
+        setError(data.message || 'Impossible d\'initialiser le paiement Stripe.');
+        setIsLoading(false);
+        return;
+      }
+
+      setStripeClientSecret(data.clientSecret);
+      setMobileReference(data.reference ?? null);
+      setIsLoading(false);
+      return;
+    }
+
     const phone = phoneNumber.replace(/\D/g, '');
     const phoneCode = selectedCountry?.phone_code?.replace('+', '') || '237';
     const fullPhone = phone.length <= 10 ? `${phoneCode}${phone}` : phone;
@@ -276,18 +497,39 @@ export function PaymentModal({
             )}
 
             {step === 2 && (
-              <motion.div
-                key="step2"
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -20 }}
-                className="flex flex-col gap-4"
-              >
-                {/* Total à payer */}
-                <div className="bg-gray-50 dark:bg-gray-800 p-3 rounded-lg flex justify-between items-center">
-                  <span className="text-sm text-muted-foreground">Total à payer</span>
-                  <span className="font-bold text-xl">{selectedPack?.price} {currencyLabel}</span>
-                </div>
+              <AnimatePresence mode="wait">
+                {stripeClientSecret ? (
+                  <motion.div key="stripe-layer" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="p-1">
+                    <Elements stripe={stripePromise} options={{ clientSecret: stripeClientSecret }}>
+                      <StripeCardForm
+                        clientSecret={stripeClientSecret}
+                        reference={mobileReference ?? ''}
+                        selectedPack={selectedPack}
+                        onSuccess={() => {
+                          setStep(3);
+                          setShowConfetti(true);
+                          onSuccess();
+                        }}
+                        onError={(msg) => setError(msg)}
+                      />
+                    </Elements>
+                    <Button variant="outline" onClick={() => { setStripeClientSecret(null); setMobileReference(null); }} className="w-full mt-3 h-10">
+                      ← Retour au choix des moyens de paiement
+                    </Button>
+                  </motion.div>
+                ) : (
+                  <motion.div
+                    key="step2"
+                    initial={{ opacity: 0, x: 20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: -20 }}
+                    className="flex flex-col gap-4"
+                  >
+                    {/* Total à payer */}
+                    <div className="bg-gray-50 dark:bg-gray-800 p-3 rounded-lg flex justify-between items-center">
+                      <span className="text-sm text-muted-foreground">Total à payer</span>
+                      <span className="font-bold text-xl">{selectedPack?.price} {currencyLabel}</span>
+                    </div>
 
                 {/* Votre position — Changer de pays (comme l’interface NotchPay) */}
                 <div className="space-y-2">
@@ -350,7 +592,10 @@ export function PaymentModal({
                     </div>
                   ) : (
                     <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                      {channels.map((ch) => (
+                      {[
+                        ...channels,
+                        { id: 'stripe_card', name: 'Carte Bancaire Internationale', type: 'stripe', requires_phone: false } as NotchPayChannel
+                      ].map((ch) => (
                         <button
                           key={ch.id}
                           type="button"
@@ -446,6 +691,8 @@ export function PaymentModal({
                   </div>
                 )}
               </motion.div>
+             )}
+            </AnimatePresence>
             )}
 
             {step === 3 && (

@@ -1,5 +1,5 @@
 /**
- * Client API backend Vote IAI (NotchPay uniquement)
+ * Client API backend Vote IAI (NotchPay + Stripe)
  * En prod: VITE_API_URL doit être l'URL COMPLÈTE du backend (ex: https://votre-api.up.railway.app)
  */
 const rawBase = import.meta.env.VITE_API_URL || '';
@@ -8,34 +8,14 @@ const BASE =
     ? `https://${rawBase}`
     : rawBase;
 
-export interface NotchPayCountry {
-  code: string;
-  name: string;
-  currency?: string;
-  flag?: string;
-  phone_code?: string;
-  channels?: string[];
-}
-
-export interface NotchPayChannel {
-  id: string;
-  name: string;
-  country: string;
-  currency: string;
-  type: string; // mobile_money | card | bank | ussd | qr | wallet
-  logo?: string;
-  minimum?: number;
-  maximum?: number;
-  requires_phone?: boolean;
-}
+export type PaymentChannel = 'cm.mtn' | 'cm.orange';
 
 export interface PayVoteRequest {
   candidateId: string;
   packId: string;
   amount: number;
-  channel: string;
+  channel: PaymentChannel;
   phone: string;
-  country?: string;
   email?: string;
 }
 
@@ -43,8 +23,6 @@ export interface PayVoteResponse {
   success: boolean;
   reference?: string;
   message?: string;
-  /** Redirection vers la page NotchPay (paiement carte). Présent uniquement pour les canaux type "card". */
-  authorization_url?: string;
 }
 
 export interface PaymentStatusResponse {
@@ -54,16 +32,20 @@ export interface PaymentStatusResponse {
   votes?: number | null;
 }
 
-export async function getNotchPayCountries(): Promise<NotchPayCountry[]> {
-  const res = await fetch(`${BASE}/api/notchpay/countries`);
-  const data = await res.json().catch(() => ({}));
-  return data.countries || [];
+// --- Stripe ---
+
+export interface PayStripeRequest {
+  candidateId: string;
+  packId: string;
+  amount: number;
+  currency?: string; // 'xaf' par défaut
 }
 
-export async function getNotchPayChannels(country: string): Promise<NotchPayChannel[]> {
-  const res = await fetch(`${BASE}/api/notchpay/channels?country=${encodeURIComponent(country)}`);
-  const data = await res.json().catch(() => ({}));
-  return data.channels || [];
+export interface PayStripeResponse {
+  success: boolean;
+  reference?: string;
+  clientSecret?: string; // PaymentIntent client_secret pour Stripe Elements
+  message?: string;
 }
 
 export async function payVote(body: PayVoteRequest): Promise<PayVoteResponse> {
@@ -79,7 +61,7 @@ export async function payVote(body: PayVoteRequest): Promise<PayVoteResponse> {
   return data;
 }
 
-export async function payStripe(body: any): Promise<any> {
+export async function payStripe(body: PayStripeRequest): Promise<PayStripeResponse> {
   const res = await fetch(`${BASE}/api/votes/pay-stripe`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },

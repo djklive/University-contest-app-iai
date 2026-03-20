@@ -790,6 +790,9 @@ export const PaymentScalarFieldEnum = {
   amount: 'amount',
   votesCount: 'votesCount',
   notchpayRef: 'notchpayRef',
+  provider: 'provider',
+  stripeIntentId: 'stripeIntentId',
+  currency: 'currency',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
 } as const

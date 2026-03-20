@@ -6,6 +6,12 @@ import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
 import { prisma, recordVote } from './db.js';
+import {
+  stripe,
+  createStripePaymentIntent,
+  retrieveStripePaymentIntent,
+  constructStripeWebhookEvent,
+} from './stripe.js';
 
 const NOTCHPAY_API = 'https://api.notchpay.co';
 const app = express();
@@ -24,6 +30,9 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization', 'x-admin-secret'],
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
 }));
+
+// Webhook Stripe nécessite le corps RAW (Buffer), AVANT express.json()
+app.use('/api/webhooks/stripe', express.raw({ type: 'application/json' }));
 app.use(express.json());
 
 const NOTCHPAY_SECRET = process.env.NOTCHPAY_SECRET_KEY;
@@ -380,13 +389,160 @@ app.post('/api/votes/pay', async (req, res) => {
   });
 });
 
+// ─────────────────────────────────────────────
+// ROUTES STRIPE
+// ─────────────────────────────────────────────
+
+/**
+ * POST /api/votes/pay-stripe
+ * Crée un PaymentIntent Stripe et retourne le clientSecret au frontend.
+ */
+app.post('/api/votes/pay-stripe', async (req, res) => {
+  if (!stripe) {
+    return res.status(503).json({
+      success: false,
+      message: 'Paiement par carte non configuré (STRIPE_SECRET_KEY manquant).',
+    });
+  }
+
+  const { candidateId, packId, amount, currency = 'xaf', email } = req.body;
+  if (!candidateId || !packId || !amount) {
+    return res.status(400).json({
+      success: false,
+      message: 'Paramètres manquants: candidateId, packId, amount.',
+    });
+  }
+
+  const votePacks = await getVotePacks();
+  const pack = votePacks.find((p) => p.id === packId);
+  if (!pack || Number(amount) !== pack.price) {
+    return res.status(400).json({
+      success: false,
+      message: 'Pack ou montant invalide.',
+    });
+  }
+
+  // Référence unique côté serveur (identique au pattern NotchPay pour cohérence)
+  const reference = `stripe_${candidateId}_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+
+  let paymentIntent;
+  try {
+    paymentIntent = await createStripePaymentIntent(pack.price, currency, {
+      reference,
+      candidateId,
+      packId,
+      votes: String(pack.votes),
+      email: email || '',
+    });
+  } catch (err) {
+    console.error('Stripe create error:', err);
+    return res.status(500).json({
+      success: false,
+      message: err.message || 'Erreur lors de la création du paiement Stripe.',
+    });
+  }
+
+  // Stocker en mémoire + DB
+  pendingPayments.set(reference, {
+    candidateId,
+    packId,
+    votes: pack.votes,
+    amount: pack.price,
+    status: 'pending',
+    provider: 'stripe',
+    stripeIntentId: paymentIntent.id,
+  });
+
+  try {
+    await prisma.payment.upsert({
+      where: { reference },
+      create: {
+        reference,
+        status: 'pending',
+        candidateId,
+        packId,
+        amount: pack.price,
+        votesCount: pack.votes,
+        provider: 'stripe',
+        currency: currency.toUpperCase(),
+        stripeIntentId: paymentIntent.id,
+      },
+      update: {
+        status: 'pending',
+        stripeIntentId: paymentIntent.id,
+        currency: currency.toUpperCase(),
+        provider: 'stripe',
+      },
+    });
+  } catch (dbErr) {
+    console.error('Payment DB create/update (Stripe):', dbErr);
+  }
+
+  return res.json({
+    success: true,
+    reference,
+    clientSecret: paymentIntent.client_secret,
+    message: 'PaymentIntent créé. Complétez le paiement côté client.',
+  });
+});
+
 /**
  * GET /api/payments/:reference/status
- * Polling du statut — NotchPay uniquement.
+ * Polling du statut — NotchPay et Stripe
  */
 app.get('/api/payments/:reference/status', async (req, res) => {
   const { reference } = req.params;
   const pending = pendingPayments.get(reference);
+
+  // ── Stripe ──
+  if (pending?.provider === 'stripe' || reference.startsWith('stripe_')) {
+    const stripeIntentId = pending?.stripeIntentId;
+    if (stripeIntentId && stripe) {
+      try {
+        const intent = await retrieveStripePaymentIntent(stripeIntentId);
+        if (intent) {
+          const status = intent.status; // "succeeded" | "requires_payment_method" | "canceled" | ...
+          const meta = intent.metadata || {};
+          const candidateId = meta.candidateId ?? pending?.candidateId;
+          const votes = meta.votes ?? pending?.votes;
+
+          if (status === 'succeeded' && candidateId && votes != null) {
+            const votesCount = Number(votes);
+            const amount = pending?.amount ?? 0;
+            try {
+              await recordVote(candidateId, reference, votesCount, amount);
+            } catch (e) {
+              console.error('recordVote Stripe error:', e);
+            }
+            pendingPayments.set(reference, { ...pending, status: 'complete' });
+            try {
+              await prisma.payment.updateMany({ where: { reference }, data: { status: 'complete' } });
+            } catch (e) {}
+            return res.json({ reference, status: 'complete', candidateId, votes: votesCount });
+          }
+
+          const failedStatuses = ['requires_payment_method', 'canceled'];
+          if (failedStatuses.includes(status)) {
+            pendingPayments.set(reference, { ...pending, status: 'failed' });
+            try {
+              await prisma.payment.updateMany({ where: { reference }, data: { status: 'failed' } });
+            } catch (e) {}
+            return res.json({ reference, status: 'failed', candidateId: pending?.candidateId ?? null, votes: pending?.votes ?? null });
+          }
+
+          // En cours (processing, requires_action, etc.)
+          return res.json({ reference, status: 'pending', candidateId: pending?.candidateId, votes: pending?.votes });
+        }
+      } catch (e) {
+        console.error('Stripe status check error:', e);
+      }
+    }
+    // Fallback mémoire
+    if (pending) {
+      return res.json({ reference, status: pending.status, candidateId: pending.candidateId, votes: pending.votes });
+    }
+    return res.status(404).json({ reference, status: 'unknown' });
+  }
 
   // ── NotchPay ──
   if (NOTCHPAY_SECRET) {
@@ -467,6 +623,56 @@ app.get('/api/payments/:reference/status', async (req, res) => {
     return res.json({ reference, status: pending.status, candidateId: pending.candidateId, votes: pending.votes });
   }
   return res.status(404).json({ reference, status: 'unknown' });
+});
+
+// ─────────────────────────────────────────────
+// WEBHOOK STRIPE
+// ─────────────────────────────────────────────
+
+app.post('/api/webhooks/stripe', async (req, res) => {
+  const sig = req.headers['stripe-signature'];
+  let event;
+
+  try {
+    event = constructStripeWebhookEvent(req.body, sig);
+  } catch (err) {
+    console.error('Stripe webhook signature error:', err.message);
+    return res.status(400).send(`Webhook Error: ${err.message}`);
+  }
+
+  const intent = event.data.object;
+  const meta = intent.metadata || {};
+  const reference = meta.reference;
+
+  if (event.type === 'payment_intent.succeeded') {
+    const candidateId = meta.candidateId;
+    const votesCount = Number(meta.votes || 0);
+    const amount = intent.amount; // en XAF (zero-decimal)
+
+    if (reference && candidateId && votesCount > 0) {
+      try {
+        await recordVote(candidateId, reference, votesCount, amount);
+      } catch (e) {
+        console.error('recordVote Stripe webhook error:', e);
+      }
+      pendingPayments.set(reference, { candidateId, packId: meta.packId, votes: votesCount, status: 'complete', provider: 'stripe' });
+      try {
+        await prisma.payment.updateMany({ where: { reference }, data: { status: 'complete' } });
+      } catch (e) {}
+    }
+  }
+
+  if (event.type === 'payment_intent.payment_failed') {
+    if (reference) {
+      const p = pendingPayments.get(reference);
+      if (p) { p.status = 'failed'; pendingPayments.set(reference, p); }
+      try {
+        await prisma.payment.updateMany({ where: { reference }, data: { status: 'failed' } });
+      } catch (e) {}
+    }
+  }
+
+  res.status(200).send('OK');
 });
 
 // ─────────────────────────────────────────────
